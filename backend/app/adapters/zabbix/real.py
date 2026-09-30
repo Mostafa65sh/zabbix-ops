@@ -188,6 +188,10 @@ class RealZabbixAdapter(ZabbixAdapterBase):
         limit: int = 500,
         offset: int = 0
     ) -> List[Dict[str, Any]]:
+        # Zabbix host.get does NOT support 'offset' in CApiInputValidator (Zabbix 7.0.5).
+        # We retrieve a bounded candidate set (up to limit + offset, capped at 1000)
+        # and safely slice client-side without unbounded memory consumption or N+1 queries.
+        bounded_limit = min(max(limit + offset, 1), 1000)
         params: Dict[str, Any] = {
             "output": ["hostid", "host", "name", "status", "maintenance_status", "description"],
             "selectInterfaces": ["interfaceid", "ip", "dns", "port", "type", "main", "available", "error"],
@@ -195,8 +199,7 @@ class RealZabbixAdapter(ZabbixAdapterBase):
             "selectInventory": ["os", "os_full", "hardware", "software", "contact", "location", "site_rack", "tag", "notes"],
             "selectTags": ["tag", "value"],
             "monitored_hosts": True,
-            "limit": limit,
-            "offset": offset
+            "limit": bounded_limit
         }
         if search:
             params["search"] = {"name": search, "host": search}
@@ -206,13 +209,19 @@ class RealZabbixAdapter(ZabbixAdapterBase):
         if not raw_hosts:
             return []
 
-        hostids = [str(h["hostid"]) for h in raw_hosts]
+        # Safe client-side pagination slice preserving application contract
+        paged_hosts = raw_hosts[offset : offset + limit] if offset > 0 or len(raw_hosts) > limit else raw_hosts
+        if not paged_hosts:
+            return []
+
+        hostids = [str(h["hostid"]) for h in paged_hosts]
 
         # Batch item queries without N+1 requests
-        items_map: Dict[str, Dict[str, Any]] = {hid: {} for hid in hostids}
+        items_by_host: Dict[str, Dict[str, Dict[str, Any]]] = {hid: {} for hid in hostids}
+        itemids_float: List[str] = []
         try:
             raw_items = await self._call_api("item.get", {
-                "output": ["itemid", "hostid", "key_", "name", "lastvalue", "units", "lastclock"],
+                "output": ["itemid", "hostid", "key_", "name", "value_type", "units"],
                 "hostids": hostids,
                 "filter": {
                     "key_": [
@@ -232,13 +241,42 @@ class RealZabbixAdapter(ZabbixAdapterBase):
             }) or []
             for it in raw_items:
                 hid = str(it.get("hostid"))
-                if hid in items_map:
-                    items_map[hid][it.get("key_")] = it
+                key = it.get("key_")
+                if hid in items_by_host and key:
+                    items_by_host[hid][key] = it
+                    # Collect float items for history.get (value_type 0 = float, 3 = uint)
+                    val_type = str(it.get("value_type", "0"))
+                    if val_type in ("0", "3") and key in ("system.cpu.util", "vm.memory.util", "vfs.fs.size[/,pused]"):
+                        itemids_float.append(str(it["itemid"]))
         except Exception:
             pass
 
+        # In Zabbix 7.0.5, lastvalue was removed from items table.
+        # Retrieve latest telemetry values via a single batched history.get call.
+        history_values: Dict[str, float] = {}
+        if itemids_float:
+            try:
+                raw_history = await self._call_api("history.get", {
+                    "output": ["itemid", "clock", "value"],
+                    "history": 0,  # 0 = numeric float
+                    "itemids": itemids_float,
+                    "sortfield": "clock",
+                    "sortorder": "DESC",
+                    "limit": len(itemids_float) * 5
+                }) or []
+                for entry in raw_history:
+                    iid = str(entry.get("itemid"))
+                    # Since sorted by clock DESC, first occurrence is the latest value
+                    if iid not in history_values:
+                        try:
+                            history_values[iid] = float(entry.get("value"))
+                        except (ValueError, TypeError):
+                            pass
+            except Exception:
+                pass
+
         result = []
-        for h in raw_hosts:
+        for h in paged_hosts:
             hid = str(h["hostid"])
             h_status = "UP"
             if h.get("maintenance_status") == "1":
@@ -255,37 +293,32 @@ class RealZabbixAdapter(ZabbixAdapterBase):
             if status and h_status.upper() != status.upper():
                 continue
 
-            host_items = items_map.get(hid, {})
+            host_items = items_by_host.get(hid, {})
             inv = h.get("inventory") or {}
             if not isinstance(inv, dict):
                 inv = {}
 
+            # Resolve telemetry from batch history values without fabrication (Golden Rule)
             cpu_val = None
-            if "system.cpu.util" in host_items and host_items["system.cpu.util"].get("lastvalue") is not None:
-                try:
-                    cpu_val = float(host_items["system.cpu.util"]["lastvalue"])
-                except (ValueError, TypeError):
-                    cpu_val = None
+            if "system.cpu.util" in host_items:
+                cpu_itemid = str(host_items["system.cpu.util"].get("itemid", ""))
+                cpu_val = history_values.get(cpu_itemid)
 
             mem_val = None
-            if "vm.memory.util" in host_items and host_items["vm.memory.util"].get("lastvalue") is not None:
-                try:
-                    mem_val = float(host_items["vm.memory.util"]["lastvalue"])
-                except (ValueError, TypeError):
-                    mem_val = None
+            if "vm.memory.util" in host_items:
+                mem_itemid = str(host_items["vm.memory.util"].get("itemid", ""))
+                mem_val = history_values.get(mem_itemid)
 
             storage_val = None
-            if "vfs.fs.size[/,pused]" in host_items and host_items["vfs.fs.size[/,pused]"].get("lastvalue") is not None:
-                try:
-                    storage_val = float(host_items["vfs.fs.size[/,pused]"]["lastvalue"])
-                except (ValueError, TypeError):
-                    storage_val = None
+            if "vfs.fs.size[/,pused]" in host_items:
+                storage_itemid = str(host_items["vfs.fs.size[/,pused]"].get("itemid", ""))
+                storage_val = history_values.get(storage_itemid)
 
             os_detected = inv.get("os_full") or inv.get("os")
             if not os_detected and "system.sw.os" in host_items:
-                os_detected = host_items["system.sw.os"].get("lastvalue")
+                os_detected = host_items["system.sw.os"].get("name")
             if not os_detected and "system.uname" in host_items:
-                os_detected = host_items["system.uname"].get("lastvalue")
+                os_detected = host_items["system.uname"].get("name")
 
             result.append({
                 "hostid": hid,
@@ -306,5 +339,6 @@ class RealZabbixAdapter(ZabbixAdapterBase):
                 "hardware": inv.get("hardware") or "Standard Compute"
             })
         return result
+
 
 

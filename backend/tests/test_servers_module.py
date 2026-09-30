@@ -314,3 +314,161 @@ async def test_server_detail_endpoint():
         resp_404 = await client.get("/api/v1/servers/non_existent_9999")
         assert resp_404.status_code == 404
         assert "was not found" in resp_404.json()["detail"]
+
+
+# 12. RealZabbixAdapter: Verify host.get does NOT receive offset
+@pytest.mark.asyncio
+async def test_real_adapter_host_get_no_offset():
+    from app.adapters.zabbix.real import RealZabbixAdapter
+    recorded_calls = []
+
+    class MockedRealZabbixAdapter(RealZabbixAdapter):
+        def __init__(self):
+            super().__init__(api_url="http://mocked-zabbix/api_jsonrpc.php", api_token="fake_token")
+
+        async def _call_api(self, method: str, params: dict):
+            recorded_calls.append({"method": method, "params": params})
+            if method == "host.get":
+                # Return 10 hosts
+                return [
+                    {
+                        "hostid": str(i),
+                        "host": f"srv-{i}.corp.local",
+                        "name": f"SRV-{i}",
+                        "status": "0",
+                        "maintenance_status": "0",
+                        "interfaces": [{"interfaceid": str(i), "ip": f"10.0.0.{i}", "available": 1, "main": 1, "type": 1}],
+                        "groups": [{"name": "Linux Servers"}],
+                        "inventory": {"os": "Linux 6.1"},
+                        "tags": []
+                    }
+                    for i in range(1, 11)
+                ]
+            elif method == "item.get":
+                return []
+            elif method == "history.get":
+                return []
+            return []
+
+    adapter = MockedRealZabbixAdapter()
+    res = await adapter.get_server_inventory(limit=3, offset=2)
+
+    # 1. Verify host.get was called
+    host_calls = [c for c in recorded_calls if c["method"] == "host.get"]
+    assert len(host_calls) == 1
+    host_params = host_calls[0]["params"]
+
+    # 2. Strict verification: 'offset' MUST NOT be in params
+    assert "offset" not in host_params
+
+    # 3. Limit must be bounded
+    assert host_params["limit"] == 5  # limit + offset = 3 + 2
+
+    # 4. Result must be sliced correctly client-side
+    assert len(res) == 3
+    assert res[0]["hostid"] == "3"
+    assert res[1]["hostid"] == "4"
+    assert res[2]["hostid"] == "5"
+
+
+# 13. RealZabbixAdapter: Verify history API telemetry, NO_DATA fallback, and NO N+1 requests
+@pytest.mark.asyncio
+async def test_real_adapter_history_telemetry_batching_and_no_n_plus_one():
+    from app.adapters.zabbix.real import RealZabbixAdapter
+    recorded_calls = []
+
+    class MockedRealZabbixAdapter(RealZabbixAdapter):
+        def __init__(self):
+            super().__init__(api_url="http://mocked-zabbix/api_jsonrpc.php", api_token="fake_token")
+
+        async def _call_api(self, method: str, params: dict):
+            recorded_calls.append({"method": method, "params": params})
+            if method == "host.get":
+                return [
+                    {
+                        "hostid": "101",
+                        "host": "srv-prod-01",
+                        "name": "SRV-PROD-01",
+                        "status": "0",
+                        "maintenance_status": "0",
+                        "interfaces": [{"interfaceid": "1", "ip": "10.0.1.10", "available": 1, "main": 1, "type": 1}],
+                        "groups": [{"name": "Linux Servers"}],
+                        "inventory": {"os": "Ubuntu 22.04", "hardware": "Dell R650"},
+                        "tags": []
+                    },
+                    {
+                        "hostid": "102",
+                        "host": "srv-prod-02",
+                        "name": "SRV-PROD-02",
+                        "status": "0",
+                        "maintenance_status": "0",
+                        "interfaces": [{"interfaceid": "2", "ip": "10.0.1.11", "available": 1, "main": 1, "type": 1}],
+                        "groups": [{"name": "Linux Servers"}],
+                        "inventory": {"os": "Ubuntu 22.04", "hardware": "Dell R650"},
+                        "tags": []
+                    }
+                ]
+            elif method == "item.get":
+                # Return item definitions for both hosts (Zabbix 7.0 without lastvalue)
+                return [
+                    {"itemid": "5001", "hostid": "101", "key_": "system.cpu.util", "name": "CPU utilization", "value_type": "0"},
+                    {"itemid": "6001", "hostid": "101", "key_": "vm.memory.util", "name": "Memory utilization", "value_type": "0"},
+                    {"itemid": "7001", "hostid": "101", "key_": "vfs.fs.size[/,pused]", "name": "Disk space /", "value_type": "0"},
+                    {"itemid": "5002", "hostid": "102", "key_": "system.cpu.util", "name": "CPU utilization", "value_type": "0"},
+                    {"itemid": "6002", "hostid": "102", "key_": "vm.memory.util", "name": "Memory utilization", "value_type": "0"},
+                    {"itemid": "7002", "hostid": "102", "key_": "vfs.fs.size[/,pused]", "name": "Disk space /", "value_type": "0"}
+                ]
+            elif method == "history.get":
+                # Return float history entries: host 101 has all metrics; host 102 has only CPU
+                return [
+                    {"itemid": "5001", "clock": "1759231000", "value": "44.6"},
+                    {"itemid": "6001", "clock": "1759231000", "value": "78.2"},
+                    {"itemid": "7001", "clock": "1759231000", "value": "55.0"},
+                    {"itemid": "5002", "clock": "1759231000", "value": "92.4"}
+                    # itemid 6002 and 7002 have NO history
+                ]
+            elif method == "problem.get":
+                return []
+            return []
+
+    adapter = MockedRealZabbixAdapter()
+    service = ServersService(adapter=adapter)
+    res = await service.get_servers(ServerFilterParams())
+
+    # 1. Verify NO N+1 calls: exactly 1 host.get, 1 item.get, 1 history.get, 1 problem.get
+    call_methods = [c["method"] for c in recorded_calls]
+    assert call_methods.count("host.get") == 1
+    assert call_methods.count("item.get") == 1
+    assert call_methods.count("history.get") == 1
+    assert call_methods.count("problem.get") == 1
+
+    # 2. Verify history query params
+    hist_call = next(c for c in recorded_calls if c["method"] == "history.get")
+    assert hist_call["params"]["history"] == 0
+    assert set(hist_call["params"]["itemids"]) == {"5001", "6001", "7001", "5002", "6002", "7002"}
+
+    # 3. Verify normalization for Host 101 (complete telemetry)
+    h101 = next(s for s in res.items if s.id == "101")
+    assert h101.hardware.cpu_utilization.value == 44.6
+    assert h101.hardware.cpu_utilization.status == "NORMAL"
+    assert h101.hardware.cpu_utilization.formatted == "44.6%"
+    assert h101.hardware.memory_utilization.value == 78.2
+    assert h101.hardware.memory_utilization.status == "WARNING"  # >= 70%
+    assert h101.hardware.storage_utilization.value == 55.0
+    assert h101.hardware.storage_utilization.status == "NORMAL"
+
+    # 4. Verify normalization for Host 102 (partial telemetry, critical CPU, missing RAM/Disk)
+    h102 = next(s for s in res.items if s.id == "102")
+    assert h102.hardware.cpu_utilization.value == 92.4
+    assert h102.hardware.cpu_utilization.status == "CRITICAL"  # >= 90%
+    assert h102.hardware.cpu_utilization.formatted == "92.4%"
+
+    # Golden Rule: Missing history produces NO_DATA (never fake 0% or healthy!)
+    assert h102.hardware.memory_utilization.value is None
+    assert h102.hardware.memory_utilization.status == "NO_DATA"
+    assert h102.hardware.memory_utilization.formatted == "NO_DATA"
+
+    assert h102.hardware.storage_utilization.value is None
+    assert h102.hardware.storage_utilization.status == "NO_DATA"
+    assert h102.hardware.storage_utilization.formatted == "NO_DATA"
+
