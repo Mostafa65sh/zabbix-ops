@@ -1,21 +1,13 @@
 import { moduleRegistry } from './registry';
 import type { FrontendModuleDefinition } from './types';
 import { overviewModule } from '../../../modules/overview/frontend';
+import { serversModule } from '../../../modules/servers/frontend';
 
 // Module definitions for the 21 Product Specification modules
 const moduleDefinitions: FrontendModuleDefinition[] = [
   overviewModule,
-  {
-    id: 'servers',
+  serversModule,
 
-    name: 'Servers',
-    version: '0.1.0',
-    description: 'Server inventory, host groups, OS, hardware, and lifecycle management',
-    enabled: true,
-    route: '/servers',
-    navItem: { label: 'Servers', path: '/servers', order: 2 },
-    permissions: ['module.servers.view'],
-  },
   {
     id: 'problems',
     name: 'Problems',

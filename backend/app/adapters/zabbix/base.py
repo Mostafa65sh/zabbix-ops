@@ -34,3 +34,16 @@ class ZabbixAdapterBase(ABC):
         """Retrieve recent operational events / incidents."""
         pass
 
+    @abstractmethod
+    async def get_server_inventory(
+        self,
+        group: Optional[str] = None,
+        status: Optional[str] = None,
+        search: Optional[str] = None,
+        limit: int = 500,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """Retrieve rich server inventory records including hardware metrics, interfaces, and problems."""
+        pass
+
+

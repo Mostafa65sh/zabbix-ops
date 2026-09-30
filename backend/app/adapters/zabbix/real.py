@@ -180,3 +180,131 @@ class RealZabbixAdapter(ZabbixAdapterBase):
             ))
         return result
 
+    async def get_server_inventory(
+        self,
+        group: Optional[str] = None,
+        status: Optional[str] = None,
+        search: Optional[str] = None,
+        limit: int = 500,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        params: Dict[str, Any] = {
+            "output": ["hostid", "host", "name", "status", "maintenance_status", "description"],
+            "selectInterfaces": ["interfaceid", "ip", "dns", "port", "type", "main", "available", "error"],
+            "selectGroups": ["groupid", "name"],
+            "selectInventory": ["os", "os_full", "hardware", "software", "contact", "location", "site_rack", "tag", "notes"],
+            "selectTags": ["tag", "value"],
+            "monitored_hosts": True,
+            "limit": limit,
+            "offset": offset
+        }
+        if search:
+            params["search"] = {"name": search, "host": search}
+            params["searchByAny"] = True
+
+        raw_hosts = await self._call_api("host.get", params) or []
+        if not raw_hosts:
+            return []
+
+        hostids = [str(h["hostid"]) for h in raw_hosts]
+
+        # Batch item queries without N+1 requests
+        items_map: Dict[str, Dict[str, Any]] = {hid: {} for hid in hostids}
+        try:
+            raw_items = await self._call_api("item.get", {
+                "output": ["itemid", "hostid", "key_", "name", "lastvalue", "units", "lastclock"],
+                "hostids": hostids,
+                "filter": {
+                    "key_": [
+                        "system.cpu.util",
+                        "system.cpu.num",
+                        "system.cpu.load[all,avg1]",
+                        "vm.memory.util",
+                        "vm.memory.size[total]",
+                        "vm.memory.size[used]",
+                        "vfs.fs.size[/,pused]",
+                        "vfs.fs.size[/,total]",
+                        "vfs.fs.size[/,used]",
+                        "system.uname",
+                        "system.sw.os"
+                    ]
+                }
+            }) or []
+            for it in raw_items:
+                hid = str(it.get("hostid"))
+                if hid in items_map:
+                    items_map[hid][it.get("key_")] = it
+        except Exception:
+            pass
+
+        result = []
+        for h in raw_hosts:
+            hid = str(h["hostid"])
+            h_status = "UP"
+            if h.get("maintenance_status") == "1":
+                h_status = "MAINTENANCE"
+            else:
+                interfaces = h.get("interfaces", [])
+                if any(str(i.get("available")) == "2" for i in interfaces):
+                    h_status = "DOWN"
+
+            groups = [g["name"] for g in h.get("groups", []) if "name" in g]
+
+            if group and not any(group.lower() in g.lower() for g in groups):
+                continue
+            if status and h_status.upper() != status.upper():
+                continue
+
+            host_items = items_map.get(hid, {})
+            inv = h.get("inventory") or {}
+            if not isinstance(inv, dict):
+                inv = {}
+
+            cpu_val = None
+            if "system.cpu.util" in host_items and host_items["system.cpu.util"].get("lastvalue") is not None:
+                try:
+                    cpu_val = float(host_items["system.cpu.util"]["lastvalue"])
+                except (ValueError, TypeError):
+                    cpu_val = None
+
+            mem_val = None
+            if "vm.memory.util" in host_items and host_items["vm.memory.util"].get("lastvalue") is not None:
+                try:
+                    mem_val = float(host_items["vm.memory.util"]["lastvalue"])
+                except (ValueError, TypeError):
+                    mem_val = None
+
+            storage_val = None
+            if "vfs.fs.size[/,pused]" in host_items and host_items["vfs.fs.size[/,pused]"].get("lastvalue") is not None:
+                try:
+                    storage_val = float(host_items["vfs.fs.size[/,pused]"]["lastvalue"])
+                except (ValueError, TypeError):
+                    storage_val = None
+
+            os_detected = inv.get("os_full") or inv.get("os")
+            if not os_detected and "system.sw.os" in host_items:
+                os_detected = host_items["system.sw.os"].get("lastvalue")
+            if not os_detected and "system.uname" in host_items:
+                os_detected = host_items["system.uname"].get("lastvalue")
+
+            result.append({
+                "hostid": hid,
+                "host": h.get("host", ""),
+                "name": h.get("name") or h.get("host", ""),
+                "status": h_status,
+                "maintenance_status": h.get("maintenance_status", "0"),
+                "interfaces": h.get("interfaces", []),
+                "groups": groups,
+                "inventory": inv,
+                "tags": h.get("tags", []),
+                "metrics": {
+                    "cpu_util": cpu_val,
+                    "memory_util": mem_val,
+                    "storage_util": storage_val
+                },
+                "os": os_detected or "Unknown OS",
+                "hardware": inv.get("hardware") or "Standard Compute"
+            })
+        return result
+
+

@@ -206,3 +206,409 @@ class MockZabbixAdapter(ZabbixAdapterBase):
         ]
         return events[:limit]
 
+    async def get_server_inventory(
+        self,
+        group: Optional[str] = None,
+        status: Optional[str] = None,
+        search: Optional[str] = None,
+        limit: int = 500,
+        offset: int = 0
+    ) -> List[dict]:
+        servers = [
+            {
+                "hostid": "10001",
+                "host": "server-app-01.corp.internal",
+                "name": "SERVER-APP-01",
+                "status": "UP",
+                "maintenance_status": "0",
+                "os": "Ubuntu 22.04.4 LTS (GNU/Linux 5.15.0-101-generic x86_64)",
+                "hardware": "Dell PowerEdge R650, 8 vCPU, 32 GB RAM",
+                "groups": ["Linux Servers", "Production Applications"],
+                "interfaces": [
+                    {"interfaceid": "1", "ip": "192.168.10.11", "dns": "app01.corp.internal", "port": "10050", "type": 1, "main": 1, "available": 1, "error": ""}
+                ],
+                "tags": [
+                    {"tag": "environment", "value": "production"},
+                    {"tag": "datacenter", "value": "DC-EAST-01"},
+                    {"tag": "rack", "value": "RACK-A4"}
+                ],
+                "inventory": {
+                    "os": "Ubuntu 22.04.4 LTS",
+                    "os_full": "Ubuntu 22.04.4 LTS (GNU/Linux 5.15.0-101-generic x86_64)",
+                    "hardware": "Dell PowerEdge R650, 8 vCPU, 32 GB RAM",
+                    "location": "DC-EAST-01",
+                    "site_rack": "RACK-A4",
+                    "contact": "noc-team@company.internal"
+                },
+                "metrics": {
+                    "cpu_util": 28.5,
+                    "cpu_cores": 8,
+                    "cpu_load": 1.85,
+                    "memory_util": 64.2,
+                    "memory_total": 34359738368,
+                    "memory_used": 22058952032,
+                    "storage_util": 86.4,
+                    "storage_total": 536870912000,
+                    "storage_used": 463856467968,
+                    "net_rx_rate": "45.2 Mbps",
+                    "net_tx_rate": "88.7 Mbps"
+                }
+            },
+            {
+                "hostid": "10002",
+                "host": "server-db-primary.corp.internal",
+                "name": "SERVER-DB-PRIMARY",
+                "status": "UP",
+                "maintenance_status": "0",
+                "os": "Red Hat Enterprise Linux 9.3 (Plow)",
+                "hardware": "HPE ProLiant DL380 Gen10, 16 vCPU, 64 GB RAM",
+                "groups": ["Database Cluster", "Critical Infrastructure"],
+                "interfaces": [
+                    {"interfaceid": "2", "ip": "192.168.10.20", "dns": "db-pri.corp.internal", "port": "10050", "type": 1, "main": 1, "available": 1, "error": ""}
+                ],
+                "tags": [
+                    {"tag": "tier", "value": "database"},
+                    {"tag": "datacenter", "value": "DC-EAST-01"},
+                    {"tag": "rack", "value": "RACK-B2"}
+                ],
+                "inventory": {
+                    "os": "Red Hat Enterprise Linux 9.3",
+                    "os_full": "Red Hat Enterprise Linux 9.3 (Kernel 5.14.0-362.8.1.el9_3.x86_64)",
+                    "hardware": "HPE ProLiant DL380 Gen10, 16 vCPU, 64 GB RAM",
+                    "location": "DC-EAST-01",
+                    "site_rack": "RACK-B2"
+                },
+                "metrics": {
+                    "cpu_util": 42.1,
+                    "cpu_cores": 16,
+                    "cpu_load": 3.12,
+                    "memory_util": 78.9,
+                    "memory_total": 68719476736,
+                    "memory_used": 54219667144,
+                    "storage_util": 54.0,
+                    "storage_total": 2199023255552,
+                    "storage_used": 1187472557998,
+                    "net_rx_rate": "120.4 Mbps",
+                    "net_tx_rate": "210.8 Mbps"
+                }
+            },
+            {
+                "hostid": "10003",
+                "host": "border-gateway-01.corp.internal",
+                "name": "BORDER-GATEWAY-01",
+                "status": "UP",
+                "maintenance_status": "0",
+                "os": "VyOS 1.4-rolling-2023 / Linux 6.1",
+                "hardware": "Supermicro 1U Appliance, 4 vCPU, 8 GB RAM",
+                "groups": ["Network Devices"],
+                "interfaces": [
+                    {"interfaceid": "3", "ip": "10.0.0.1", "dns": "gw01.corp.internal", "port": "161", "type": 2, "main": 1, "available": 1, "error": ""}
+                ],
+                "tags": [
+                    {"tag": "role", "value": "router"},
+                    {"tag": "datacenter", "value": "DC-EDGE-01"},
+                    {"tag": "rack", "value": "RACK-GW1"}
+                ],
+                "inventory": {
+                    "os": "VyOS 1.4",
+                    "hardware": "Supermicro 1U Network Appliance, 4 vCPU, 8 GB RAM",
+                    "location": "DC-EDGE-01",
+                    "site_rack": "RACK-GW1"
+                },
+                "metrics": {
+                    "cpu_util": 15.4,
+                    "cpu_cores": 4,
+                    "cpu_load": 0.85,
+                    "memory_util": 32.0,
+                    "memory_total": 8589934592,
+                    "memory_used": 2748779069,
+                    "storage_util": 18.5,
+                    "storage_total": 68719476736,
+                    "storage_used": 12713103196,
+                    "net_rx_rate": "950 Mbps",
+                    "net_tx_rate": "820 Mbps"
+                }
+            },
+            {
+                "hostid": "10004",
+                "host": "backup-storage-02.corp.internal",
+                "name": "BACKUP-STORAGE-02",
+                "status": "MAINTENANCE",
+                "maintenance_status": "1",
+                "os": "TrueNAS SCALE 23.10 / Debian GNU/Linux 12",
+                "hardware": "Supermicro 4U Storage, 12 vCPU, 128 GB ECC",
+                "groups": ["Storage Systems"],
+                "interfaces": [
+                    {"interfaceid": "4", "ip": "192.168.30.5", "dns": "nas02.corp.internal", "port": "10050", "type": 1, "main": 1, "available": 1, "error": ""}
+                ],
+                "tags": [
+                    {"tag": "schedule", "value": "weekly-maintenance"},
+                    {"tag": "datacenter", "value": "DC-WEST-02"},
+                    {"tag": "rack", "value": "RACK-S1"}
+                ],
+                "inventory": {
+                    "os": "TrueNAS SCALE 23.10",
+                    "hardware": "Supermicro 4U Storage, 12 vCPU, 128 GB ECC",
+                    "location": "DC-WEST-02",
+                    "site_rack": "RACK-S1"
+                },
+                "metrics": {
+                    "cpu_util": 8.2,
+                    "cpu_cores": 12,
+                    "cpu_load": 0.65,
+                    "memory_util": 85.0,
+                    "memory_total": 137438953472,
+                    "memory_used": 116823110451,
+                    "storage_util": 71.2,
+                    "storage_total": 52776558133248,
+                    "storage_used": 37576909390872,
+                    "net_rx_rate": "340 Mbps",
+                    "net_tx_rate": "12 Mbps"
+                }
+            },
+            {
+                "hostid": "10005",
+                "host": "dev-legacy-host.corp.internal",
+                "name": "DEV-LEGACY-HOST",
+                "status": "DOWN",
+                "maintenance_status": "0",
+                "os": "CentOS Linux release 7.9.2009 (Core)",
+                "hardware": "Generic Virtual Machine, 2 vCPU, 4 GB RAM",
+                "groups": ["Development Sandbox"],
+                "interfaces": [
+                    {"interfaceid": "5", "ip": "192.168.50.99", "dns": "legacy01.corp.internal", "port": "10050", "type": 1, "main": 1, "available": 2, "error": "Connection refused on port 10050"}
+                ],
+                "tags": [
+                    {"tag": "env", "value": "sandbox"},
+                    {"tag": "datacenter", "value": "DC-DEV-LAB"},
+                    {"tag": "rack", "value": "RACK-D0"}
+                ],
+                "inventory": {
+                    "os": "CentOS Linux 7.9.2009",
+                    "hardware": "Generic Virtual Machine, 2 vCPU, 4 GB RAM",
+                    "location": "DC-DEV-LAB",
+                    "site_rack": "RACK-D0"
+                },
+                "metrics": {
+                    "cpu_util": None,
+                    "cpu_cores": 2,
+                    "cpu_load": None,
+                    "memory_util": None,
+                    "memory_total": 4294967296,
+                    "memory_used": None,
+                    "storage_util": None,
+                    "storage_total": 85899345920,
+                    "storage_used": None,
+                    "net_rx_rate": None,
+                    "net_tx_rate": None
+                }
+            },
+            {
+                "hostid": "10006",
+                "host": "server-win-ad01.corp.internal",
+                "name": "SERVER-WIN-AD01",
+                "status": "UP",
+                "maintenance_status": "0",
+                "os": "Windows Server 2022 Datacenter (10.0.20348)",
+                "hardware": "HPE ProLiant DL360 Gen10, 8 vCPU, 32 GB RAM",
+                "groups": ["Windows Servers", "Active Directory"],
+                "interfaces": [
+                    {"interfaceid": "6", "ip": "192.168.10.15", "dns": "ad01.corp.internal", "port": "10050", "type": 1, "main": 1, "available": 1, "error": ""}
+                ],
+                "tags": [
+                    {"tag": "environment", "value": "production"},
+                    {"tag": "role", "value": "domain-controller"},
+                    {"tag": "datacenter", "value": "DC-EAST-01"},
+                    {"tag": "rack", "value": "RACK-C1"}
+                ],
+                "inventory": {
+                    "os": "Windows Server 2022",
+                    "os_full": "Microsoft Windows Server 2022 Datacenter Build 20348",
+                    "hardware": "HPE ProLiant DL360 Gen10, 8 vCPU, 32 GB RAM",
+                    "location": "DC-EAST-01",
+                    "site_rack": "RACK-C1"
+                },
+                "metrics": {
+                    "cpu_util": 12.3,
+                    "cpu_cores": 8,
+                    "cpu_load": 0.92,
+                    "memory_util": 45.8,
+                    "memory_total": 34359738368,
+                    "memory_used": 15736759972,
+                    "storage_util": 38.2,
+                    "storage_total": 268435456000,
+                    "storage_used": 102542344192,
+                    "net_rx_rate": "15.8 Mbps",
+                    "net_tx_rate": "22.4 Mbps"
+                }
+            },
+            {
+                "hostid": "10007",
+                "host": "k8s-worker-01.corp.internal",
+                "name": "SERVER-K8S-WORKER-01",
+                "status": "UP",
+                "maintenance_status": "0",
+                "os": "Rocky Linux 9.2 (Blue Onyx)",
+                "hardware": "Dell PowerEdge R750, 32 vCPU, 128 GB RAM",
+                "groups": ["Linux Servers", "Kubernetes Cluster"],
+                "interfaces": [
+                    {"interfaceid": "7", "ip": "192.168.20.101", "dns": "k8s-node01.corp.internal", "port": "10050", "type": 1, "main": 1, "available": 1, "error": ""}
+                ],
+                "tags": [
+                    {"tag": "environment", "value": "production"},
+                    {"tag": "cluster", "value": "k8s-prod-east"},
+                    {"tag": "datacenter", "value": "DC-EAST-02"},
+                    {"tag": "rack", "value": "RACK-K1"}
+                ],
+                "inventory": {
+                    "os": "Rocky Linux 9.2",
+                    "hardware": "Dell PowerEdge R750, 32 vCPU, 128 GB RAM",
+                    "location": "DC-EAST-02",
+                    "site_rack": "RACK-K1"
+                },
+                "metrics": {
+                    "cpu_util": 72.8,
+                    "cpu_cores": 32,
+                    "cpu_load": 18.4,
+                    "memory_util": 81.4,
+                    "memory_total": 137438953472,
+                    "memory_used": 111875308126,
+                    "storage_util": 62.0,
+                    "storage_total": 1099511627776,
+                    "storage_used": 681697209221,
+                    "net_rx_rate": "620 Mbps",
+                    "net_tx_rate": "740 Mbps"
+                }
+            },
+            {
+                "hostid": "10008",
+                "host": "monitor-probe-west.corp.internal",
+                "name": "MONITOR-PROBE-WEST",
+                "status": "UP",
+                "maintenance_status": "0",
+                "os": "Alpine Linux 3.19.1",
+                "hardware": "Edge Micro Compute, 2 vCPU, 2 GB RAM",
+                "groups": ["Monitoring Probes"],
+                "interfaces": [
+                    {"interfaceid": "8", "ip": "10.20.0.50", "dns": "probe-west.corp.internal", "port": "10050", "type": 1, "main": 1, "available": 1, "error": ""}
+                ],
+                "tags": [
+                    {"tag": "role", "value": "probe"},
+                    {"tag": "datacenter", "value": "DC-WEST-01"},
+                    {"tag": "rack", "value": "RACK-M1"}
+                ],
+                "inventory": {
+                    "os": "Alpine Linux 3.19",
+                    "hardware": "Edge Micro Compute, 2 vCPU, 2 GB RAM",
+                    "location": "DC-WEST-01",
+                    "site_rack": "RACK-M1"
+                },
+                "metrics": {
+                    "cpu_util": 4.1,
+                    "cpu_cores": 2,
+                    "cpu_load": 0.12,
+                    "memory_util": 18.5,
+                    "memory_total": 2147483648,
+                    "memory_used": 397284475,
+                    "storage_util": 12.0,
+                    "storage_total": 34359738368,
+                    "storage_used": 4123168604,
+                    "net_rx_rate": "5.4 Mbps",
+                    "net_tx_rate": "8.1 Mbps"
+                }
+            },
+            {
+                "hostid": "10009",
+                "host": "dev-staging-api.corp.internal",
+                "name": "DEV-STAGING-API",
+                "status": "UP",
+                "maintenance_status": "0",
+                "os": "Ubuntu 24.04 LTS (Noble Numbat)",
+                "hardware": "KVM Virtual Machine, 4 vCPU, 16 GB RAM",
+                "groups": ["Linux Servers", "Development Sandbox"],
+                "interfaces": [
+                    {"interfaceid": "9", "ip": "192.168.50.25", "dns": "staging-api.corp.internal", "port": "10050", "type": 1, "main": 1, "available": 1, "error": ""}
+                ],
+                "tags": [
+                    {"tag": "env", "value": "staging"},
+                    {"tag": "datacenter", "value": "DC-DEV-LAB"},
+                    {"tag": "rack", "value": "RACK-D1"}
+                ],
+                "inventory": {
+                    "os": "Ubuntu 24.04 LTS",
+                    "hardware": "KVM Virtual Machine, 4 vCPU, 16 GB RAM",
+                    "location": "DC-DEV-LAB",
+                    "site_rack": "RACK-D1"
+                },
+                "metrics": {
+                    "cpu_util": 19.0,
+                    "cpu_cores": 4,
+                    "cpu_load": 0.74,
+                    "memory_util": 52.3,
+                    "memory_total": 17179869184,
+                    "memory_used": 8985071583,
+                    "storage_util": 41.5,
+                    "storage_total": 128849018880,
+                    "storage_used": 53472342835,
+                    "net_rx_rate": "24.5 Mbps",
+                    "net_tx_rate": "32.1 Mbps"
+                }
+            },
+            {
+                "hostid": "10010",
+                "host": "switch-core-01.corp.internal",
+                "name": "SWITCH-CORE-01",
+                "status": "UP",
+                "maintenance_status": "0",
+                "os": "Cisco IOS-XE 17.09.03a",
+                "hardware": "Catalyst 9500-48Y4C",
+                "groups": ["Network Devices"],
+                "interfaces": [
+                    {"interfaceid": "10", "ip": "10.0.0.2", "dns": "core-sw01.corp.internal", "port": "161", "type": 2, "main": 1, "available": 1, "error": ""}
+                ],
+                "tags": [
+                    {"tag": "role", "value": "core-switch"},
+                    {"tag": "datacenter", "value": "DC-EAST-01"},
+                    {"tag": "rack", "value": "RACK-NET1"}
+                ],
+                "inventory": {
+                    "os": "Cisco IOS-XE 17.09",
+                    "hardware": "Catalyst 9500-48Y4C",
+                    "location": "DC-EAST-01",
+                    "site_rack": "RACK-NET1"
+                },
+                "metrics": {
+                    "cpu_util": 22.0,
+                    "cpu_cores": 2,
+                    "cpu_load": 0.45,
+                    "memory_util": 48.0,
+                    "memory_total": 4294967296,
+                    "memory_used": 2061584302,
+                    "storage_util": 30.0,
+                    "storage_total": 17179869184,
+                    "storage_used": 5153960755,
+                    "net_rx_rate": "1250 Mbps",
+                    "net_tx_rate": "1180 Mbps"
+                }
+            }
+        ]
+
+        # Apply basic filters
+        res = servers
+        if group:
+            res = [s for s in res if any(group.lower() in g.lower() for g in s.get("groups", []))]
+        if status:
+            res = [s for s in res if s.get("status", "").upper() == status.upper()]
+        if search:
+            s_low = search.lower()
+            res = [
+                s for s in res
+                if s_low in s.get("name", "").lower()
+                or s_low in s.get("host", "").lower()
+                or any(s_low in i.get("ip", "").lower() for i in s.get("interfaces", []))
+                or s_low in s.get("os", "").lower()
+            ]
+
+        return res[offset : offset + limit]
+
+
