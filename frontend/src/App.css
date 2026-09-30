@@ -74,7 +74,9 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  width: 100%;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .platform-header {
@@ -86,12 +88,14 @@ body {
   justify-content: space-between;
   padding: 0 20px;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .platform-header .brand {
   display: flex;
   align-items: center;
   gap: 10px;
+  color: var(--text-main);
 }
 
 .platform-header .logo-dot {
@@ -100,13 +104,15 @@ body {
   border-radius: 50%;
   background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
   box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+  flex-shrink: 0;
 }
 
 .platform-header h1 {
   font-size: 1.05rem;
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
   letter-spacing: 0.3px;
+  color: var(--text-main);
 }
 
 .core-badge {
@@ -138,7 +144,9 @@ body {
 .platform-body {
   display: flex;
   flex: 1;
+  width: 100%;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .platform-sidebar {
@@ -205,10 +213,13 @@ body {
 
 .platform-content {
   flex: 1;
+  min-width: 0;
+  width: 100%;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   background-color: var(--bg-primary);
+  box-sizing: border-box;
 }
 
 /* ==============================================================================
@@ -219,22 +230,30 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .overview-header {
-  height: 52px;
+  min-height: 52px;
+  height: auto;
   background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 24px;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 14px;
 }
 
 .brand-badge {
@@ -248,12 +267,15 @@ body {
   height: 8px;
   border-radius: 50%;
   background: var(--accent-blue);
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.5);
+  flex-shrink: 0;
 }
 
 .brand-title {
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-main);
+  letter-spacing: 0.2px;
 }
 
 .module-title-separator {
@@ -284,11 +306,13 @@ body {
   height: 6px;
   border-radius: 50%;
   background: var(--accent-amber);
+  flex-shrink: 0;
 }
 
 .header-right {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 14px;
 }
 
@@ -484,6 +508,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* KPI Grid */
@@ -496,6 +522,12 @@ body {
 @media (max-width: 1440px) {
   .kpi-summary-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .kpi-summary-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1101,7 +1133,18 @@ body {
 .servers-module-container {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+.servers-content-layout {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .count-pill {
@@ -1381,10 +1424,35 @@ body {
   border: 1px solid var(--border-color);
   border-radius: 6px;
   overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .servers-table-wrapper {
   overflow-x: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.enterprise-data-table,
+.servers-table {
+  width: 100%;
+  min-width: 850px;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  text-align: left;
+}
+
+.enterprise-data-table th,
+.servers-table th {
+  background: var(--bg-secondary);
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
 }
 
 .servers-table th.metric-th {
@@ -2168,6 +2236,23 @@ body {
    MODULE 03 — PROBLEMS & INCIDENT CENTER
    ========================================================================== */
 
+.problems-module-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+.overview-main {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 /* Severity Command Bar */
 .problems-severity-command-bar {
   display: flex;
@@ -2378,10 +2463,56 @@ body {
   color: var(--sev-warning);
 }
 
+/* Filter Bar (Problems) */
+.filter-bar,
+.problems-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 10px 14px;
+  box-sizing: border-box;
+}
+
 /* Problems Table */
+.table-wrapper,
+.problems-table-wrapper {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow-x: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.data-table,
+.problems-table {
+  width: 100%;
+  min-width: 850px;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  text-align: left;
+}
+
+.data-table th,
+.problems-table th {
+  background: var(--bg-secondary);
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
 .problems-table td {
   vertical-align: middle;
   padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .severity-cell-badge {
@@ -2833,4 +2964,56 @@ body {
   color: var(--text-muted);
 }
 
+.data-table tbody tr,
+.enterprise-data-table tbody tr,
+.problems-table tbody tr {
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
 
+.data-table tbody tr:hover,
+.enterprise-data-table tbody tr:hover,
+.problems-table tbody tr:hover {
+  background: var(--bg-card-hover);
+}
+
+/* ==============================================================================
+   RESPONSIVE LAYOUT ADJUSTMENTS
+   ============================================================================== */
+
+@media (max-width: 1024px) {
+  .platform-sidebar {
+    width: 180px;
+  }
+}
+
+@media (max-width: 768px) {
+  .platform-body {
+    flex-direction: column;
+  }
+
+  .platform-sidebar {
+    width: 100%;
+    height: auto;
+    max-height: 140px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .module-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 6px 12px;
+  }
+
+  .overview-content-layout,
+  .servers-content-layout,
+  .overview-main {
+    padding: 12px 16px;
+    gap: 12px;
+  }
+
+  .overview-header {
+    padding: 8px 16px;
+  }
+}

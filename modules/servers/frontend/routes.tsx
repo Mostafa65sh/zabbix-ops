@@ -110,62 +110,65 @@ export const ServersPage: React.FC = () => {
         onToggleTheme={toggleTheme}
       />
 
-      {/* 2. Top Summary KPI Cards */}
-      {data && (
-        <ServersSummaryCards
-          summary={data.summary}
-          onFilterStatus={handleFilterStatus}
-        />
-      )}
-
-      {/* 3. Comprehensive Filter Bar */}
-      <ServersFilterBar
-        filters={filters}
-        onFilterChange={setFilters}
-        autoRefreshInterval={autoRefreshInterval}
-        onAutoRefreshChange={setAutoRefreshInterval}
-      />
-
-      {/* Non-blocking Error Banner */}
-      {error && (
-        <div className="non-blocking-error-banner">
-          <span className="error-icon">⚠</span>
-          <span className="error-text">
-            <strong>Inventory Sync Notice:</strong> {error}. Retaining prior valid operational state.
-          </span>
-          <button type="button" className="retry-btn" onClick={() => loadData(false)}>
-            Retry Now
-          </button>
-        </div>
-      )}
-
-      {/* Main Content Area */}
-      {isLoading && !data ? (
-        <div className="overview-loading-state">
-          <div className="loading-spinner"></div>
-          <p>Connecting to Zabbix API and assembling server telemetry...</p>
-        </div>
-      ) : (
-        <div className="servers-content-card">
-          <ServersTable
-            servers={data?.items || []}
-            filters={filters}
-            onFilterChange={setFilters}
-            onSelectServer={handleSelectServer}
+      {/* Content Layout */}
+      <div className="servers-content-layout">
+        {/* 2. Top Summary KPI Cards */}
+        {data && (
+          <ServersSummaryCards
+            summary={data.summary}
+            onFilterStatus={handleFilterStatus}
           />
+        )}
 
-          {data && (
-            <PaginationControls
-              page={data.page}
-              pageSize={data.page_size}
-              totalCount={data.total_count}
-              totalPages={data.total_pages}
-              onPageChange={(p) => setFilters({ ...filters, page: p })}
-              onPageSizeChange={(s) => setFilters({ ...filters, page_size: s, page: 1 })}
+        {/* 3. Comprehensive Filter Bar */}
+        <ServersFilterBar
+          filters={filters}
+          onFilterChange={setFilters}
+          autoRefreshInterval={autoRefreshInterval}
+          onAutoRefreshChange={setAutoRefreshInterval}
+        />
+
+        {/* Non-blocking Error Banner */}
+        {error && (
+          <div className="non-blocking-error-banner">
+            <span className="error-icon">⚠</span>
+            <span className="error-text">
+              <strong>Inventory Sync Notice:</strong> {error}. Retaining prior valid operational state.
+            </span>
+            <button type="button" className="retry-btn" onClick={() => loadData(false)}>
+              Retry Now
+            </button>
+          </div>
+        )}
+
+        {/* Main Content Area */}
+        {isLoading && !data ? (
+          <div className="overview-loading-state">
+            <div className="loading-spinner"></div>
+            <p>Connecting to Zabbix API and assembling server telemetry...</p>
+          </div>
+        ) : (
+          <div className="servers-content-card">
+            <ServersTable
+              servers={data?.items || []}
+              filters={filters}
+              onFilterChange={setFilters}
+              onSelectServer={handleSelectServer}
             />
-          )}
-        </div>
-      )}
+
+            {data && (
+              <PaginationControls
+                page={data.page}
+                pageSize={data.page_size}
+                totalCount={data.total_count}
+                totalPages={data.total_pages}
+                onPageChange={(p) => setFilters({ ...filters, page: p })}
+                onPageSizeChange={(s) => setFilters({ ...filters, page_size: s, page: 1 })}
+              />
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Server Detail Drawer */}
       <ServerDetailDrawer
