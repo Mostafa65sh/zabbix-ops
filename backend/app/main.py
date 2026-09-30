@@ -40,7 +40,6 @@ app.include_router(system.router, prefix="/api/v1")
 # Register legacy v1 API routes (preserved for Phase 0 compatibility)
 app.include_router(health.router, prefix="/api/v1", tags=["Health"])
 app.include_router(hosts.router, prefix="/api/v1", tags=["Hosts"])
-app.include_router(problems.router, prefix="/api/v1", tags=["Problems"])
 
 
 # Initialize module discovery and route registration

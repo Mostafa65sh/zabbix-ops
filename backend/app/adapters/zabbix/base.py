@@ -46,4 +46,40 @@ class ZabbixAdapterBase(ABC):
         """Retrieve rich server inventory records including hardware metrics, interfaces, and problems."""
         pass
 
+    @abstractmethod
+    async def get_problem_count(
+        self,
+        time_from: Optional[int] = None,
+        time_till: Optional[int] = None,
+        severities: Optional[List[int]] = None,
+        acknowledged: Optional[bool] = None,
+        suppressed: Optional[bool] = None,
+        search: Optional[str] = None
+    ) -> int:
+        """Count matching active problems using native countOutput: True."""
+        pass
+
+    @abstractmethod
+    async def get_problem_feed(
+        self,
+        time_from: Optional[int] = None,
+        time_till: Optional[int] = None,
+        severities: Optional[List[int]] = None,
+        acknowledged: Optional[bool] = None,
+        suppressed: Optional[bool] = None,
+        search: Optional[str] = None,
+        sort_field: str = "clock",
+        sort_order: str = "DESC",
+        limit: int = 250,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """Retrieve rich Zabbix 7.0.5 problem records with hosts, tags, opdata, and acknowledges."""
+        pass
+
+    @abstractmethod
+    async def get_problem_detail(self, event_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve single problem detail and associated alert history via event.get."""
+        pass
+
+
 

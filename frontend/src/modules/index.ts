@@ -2,22 +2,13 @@ import { moduleRegistry } from './registry';
 import type { FrontendModuleDefinition } from './types';
 import { overviewModule } from '../../../modules/overview/frontend';
 import { serversModule } from '../../../modules/servers/frontend';
+import { problemsModule } from '../../../modules/problems/frontend';
 
 // Module definitions for the 21 Product Specification modules
 const moduleDefinitions: FrontendModuleDefinition[] = [
   overviewModule,
   serversModule,
-
-  {
-    id: 'problems',
-    name: 'Problems',
-    version: '0.1.0',
-    description: 'Real-time problem center, active events, suppression, and acknowledge workflows',
-    enabled: true,
-    route: '/problems',
-    navItem: { label: 'Problems', path: '/problems', order: 3 },
-    permissions: ['module.problems.view'],
-  },
+  problemsModule,
   {
     id: 'availability',
     name: 'Availability',

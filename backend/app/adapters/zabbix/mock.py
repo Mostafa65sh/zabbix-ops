@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import time
 from app.adapters.zabbix.base import ZabbixAdapterBase
 from app.models.schemas import HostSummary, ProblemItem, OverviewData, ProblemCountSummary, InterfaceModel, EventItem
@@ -610,5 +610,372 @@ class MockZabbixAdapter(ZabbixAdapterBase):
             ]
 
         return res[offset : offset + limit]
+
+    def _get_raw_mock_problems(self) -> List[dict]:
+        now = int(time.time())
+        return [
+            {
+                "eventid": "90001",
+                "source": "0",
+                "object": "0",
+                "objectid": "20001",
+                "clock": str(now - 300),
+                "ns": "0",
+                "r_eventid": "0",
+                "r_clock": "0",
+                "name": "Host is unreachable by ICMP and agent",
+                "acknowledged": "0",
+                "severity": "5",
+                "cause_eventid": "0",
+                "opdata": "",
+                "suppressed": "0",
+                "hosts": [{"hostid": "10005", "host": "dev-legacy-host.corp.internal", "name": "DEV-LEGACY-HOST"}],
+                "tags": [
+                    {"tag": "service", "value": "core-network"},
+                    {"tag": "tier", "value": "infra"}
+                ],
+                "acknowledges": [],
+                "suppression_data": [],
+                "alerts": [
+                    {
+                        "alertid": "1",
+                        "mediatypeid": "1",
+                        "clock": str(now - 290),
+                        "sendto": "noc-alerts@company.internal",
+                        "status": "1",
+                        "error": ""
+                    }
+                ]
+            },
+            {
+                "eventid": "90002",
+                "source": "0",
+                "object": "0",
+                "objectid": "20002",
+                "clock": str(now - 1800),
+                "ns": "0",
+                "r_eventid": "0",
+                "r_clock": "0",
+                "name": "WAN interface utilization exceeds 95%",
+                "acknowledged": "1",
+                "severity": "4",
+                "cause_eventid": "0",
+                "opdata": "Current util: 96.8 %",
+                "suppressed": "0",
+                "hosts": [{"hostid": "10003", "host": "border-gateway-01.corp.internal", "name": "BORDER-GATEWAY-01"}],
+                "tags": [
+                    {"tag": "component", "value": "network"},
+                    {"tag": "datacenter", "value": "DC-EDGE-01"}
+                ],
+                "acknowledges": [
+                    {
+                        "acknowledgeid": "101",
+                        "userid": "1",
+                        "clock": str(now - 1200),
+                        "message": "Investigating traffic spike with upstream ISP",
+                        "action": "6",
+                        "old_severity": "0",
+                        "new_severity": "0"
+                    }
+                ],
+                "suppression_data": [],
+                "alerts": [
+                    {
+                        "alertid": "2",
+                        "mediatypeid": "1",
+                        "clock": str(now - 1790),
+                        "sendto": "network-ops@company.internal",
+                        "status": "1",
+                        "error": ""
+                    }
+                ]
+            },
+            {
+                "eventid": "90003",
+                "source": "0",
+                "object": "0",
+                "objectid": "20003",
+                "clock": str(now - 5400),
+                "ns": "0",
+                "r_eventid": "0",
+                "r_clock": "0",
+                "name": "High memory usage on application node",
+                "acknowledged": "1",
+                "severity": "3",
+                "cause_eventid": "0",
+                "opdata": "84.2 %",
+                "suppressed": "0",
+                "hosts": [{"hostid": "10001", "host": "server-app-01.corp.internal", "name": "SERVER-APP-01"}],
+                "tags": [
+                    {"tag": "app", "value": "api-gateway"}
+                ],
+                "acknowledges": [
+                    {
+                        "acknowledgeid": "102",
+                        "userid": "2",
+                        "clock": str(now - 4800),
+                        "message": "Pod autoscaling initiated",
+                        "action": "2",
+                        "old_severity": "0",
+                        "new_severity": "0"
+                    }
+                ],
+                "suppression_data": [],
+                "alerts": []
+            },
+            {
+                "eventid": "90004",
+                "source": "0",
+                "object": "0",
+                "objectid": "20004",
+                "clock": str(now - 1700),
+                "ns": "0",
+                "r_eventid": "0",
+                "r_clock": "0",
+                "name": "Packet loss detected on WAN link",
+                "acknowledged": "0",
+                "severity": "3",
+                "cause_eventid": "90002",
+                "opdata": "Loss rate: 12%",
+                "suppressed": "0",
+                "hosts": [{"hostid": "10003", "host": "border-gateway-01.corp.internal", "name": "BORDER-GATEWAY-01"}],
+                "tags": [
+                    {"tag": "symptom", "value": "true"}
+                ],
+                "acknowledges": [],
+                "suppression_data": [],
+                "alerts": []
+            },
+            {
+                "eventid": "90005",
+                "source": "0",
+                "object": "0",
+                "objectid": "20005",
+                "clock": str(now - 14400),
+                "ns": "0",
+                "r_eventid": "0",
+                "r_clock": "0",
+                "name": "Disk space utilization exceeds 85% on /var/log",
+                "acknowledged": "0",
+                "severity": "2",
+                "cause_eventid": "0",
+                "opdata": "86.4 % free: 73.1 GB",
+                "suppressed": "0",
+                "hosts": [{"hostid": "10001", "host": "server-app-01.corp.internal", "name": "SERVER-APP-01"}],
+                "tags": [
+                    {"tag": "filesystem", "value": "/var/log"}
+                ],
+                "acknowledges": [],
+                "suppression_data": [],
+                "alerts": []
+            },
+            {
+                "eventid": "90006",
+                "source": "0",
+                "object": "0",
+                "objectid": "20006",
+                "clock": str(now - 28800),
+                "ns": "0",
+                "r_eventid": "0",
+                "r_clock": "0",
+                "name": "Scheduled backup snapshot in progress",
+                "acknowledged": "1",
+                "severity": "1",
+                "cause_eventid": "0",
+                "opdata": "Snapshot job #449",
+                "suppressed": "1",
+                "hosts": [{"hostid": "10004", "host": "backup-storage-02.corp.internal", "name": "BACKUP-STORAGE-02"}],
+                "tags": [
+                    {"tag": "maintenance", "value": "backup"}
+                ],
+                "acknowledges": [
+                    {
+                        "acknowledgeid": "103",
+                        "userid": "1",
+                        "clock": str(now - 28000),
+                        "message": "Expected maintenance window window active",
+                        "action": "4",
+                        "old_severity": "0",
+                        "new_severity": "0"
+                    }
+                ],
+                "suppression_data": [
+                    {
+                        "maintenanceid": "1",
+                        "suppress_until": str(now + 3600)
+                    }
+                ],
+                "alerts": []
+            },
+            {
+                "eventid": "90007",
+                "source": "0",
+                "object": "0",
+                "objectid": "20007",
+                "clock": str(now - 86400),
+                "ns": "0",
+                "r_eventid": "0",
+                "r_clock": "0",
+                "name": "SSL certificate expires in less than 30 days",
+                "acknowledged": "0",
+                "severity": "2",
+                "cause_eventid": "0",
+                "opdata": "Days remaining: 24",
+                "suppressed": "0",
+                "hosts": [{"hostid": "10006", "host": "server-win-ad01.corp.internal", "name": "SERVER-WIN-AD01"}],
+                "tags": [
+                    {"tag": "security", "value": "tls"}
+                ],
+                "acknowledges": [],
+                "suppression_data": [],
+                "alerts": []
+            },
+            {
+                "eventid": "90008",
+                "source": "0",
+                "object": "0",
+                "objectid": "20008",
+                "clock": str(now - 172800),
+                "ns": "0",
+                "r_eventid": "0",
+                "r_clock": "0",
+                "name": "Unidentified hardware sensor alert",
+                "acknowledged": "0",
+                "severity": "0",
+                "cause_eventid": "0",
+                "opdata": "",
+                "suppressed": "0",
+                "hosts": [{"hostid": "10002", "host": "server-db-primary.corp.internal", "name": "SERVER-DB-PRIMARY"}],
+                "tags": [
+                    {"tag": "hardware", "value": "ipmi"}
+                ],
+                "acknowledges": [],
+                "suppression_data": [],
+                "alerts": []
+            },
+            {
+                "eventid": "90009",
+                "source": "0",
+                "object": "0",
+                "objectid": "20009",
+                "clock": str(now - 1600),
+                "ns": "0",
+                "r_eventid": "0",
+                "r_clock": "0",
+                "name": "Database replication latency anomaly",
+                "acknowledged": "0",
+                "severity": "4",
+                "cause_eventid": "90002",
+                "opdata": "Delay: 42s",
+                "suppressed": "0",
+                "hosts": [{"hostid": "10002", "host": "server-db-primary.corp.internal", "name": "SERVER-DB-PRIMARY"}],
+                "tags": [
+                    {"tag": "db", "value": "replica"}
+                ],
+                "acknowledges": [],
+                "suppression_data": [],
+                "alerts": []
+            }
+        ]
+
+    def _filter_mock_problems(
+        self,
+        time_from: Optional[int] = None,
+        time_till: Optional[int] = None,
+        severities: Optional[List[int]] = None,
+        acknowledged: Optional[bool] = None,
+        suppressed: Optional[bool] = None,
+        search: Optional[str] = None
+    ) -> List[dict]:
+        items = self._get_raw_mock_problems()
+        res = []
+        for p in items:
+            clock = int(p.get("clock", 0))
+            if time_from is not None and clock < time_from:
+                continue
+            if time_till is not None and clock > time_till:
+                continue
+            if severities is not None and int(p.get("severity", 0)) not in severities:
+                continue
+            if acknowledged is not None:
+                p_ack = p.get("acknowledged") == "1"
+                if p_ack != acknowledged:
+                    continue
+            if suppressed is not None:
+                p_supp = p.get("suppressed") == "1"
+                if p_supp != suppressed:
+                    continue
+            if search:
+                s_lower = search.lower()
+                name_match = s_lower in p.get("name", "").lower()
+                opdata_match = s_lower in p.get("opdata", "").lower()
+                host_match = any(
+                    s_lower in h.get("name", "").lower() or s_lower in h.get("host", "").lower()
+                    for h in p.get("hosts", [])
+                )
+                if not (name_match or opdata_match or host_match):
+                    continue
+            res.append(p)
+        return res
+
+    async def get_problem_count(
+        self,
+        time_from: Optional[int] = None,
+        time_till: Optional[int] = None,
+        severities: Optional[List[int]] = None,
+        acknowledged: Optional[bool] = None,
+        suppressed: Optional[bool] = None,
+        search: Optional[str] = None
+    ) -> int:
+        filtered = self._filter_mock_problems(
+            time_from=time_from,
+            time_till=time_till,
+            severities=severities,
+            acknowledged=acknowledged,
+            suppressed=suppressed,
+            search=search
+        )
+        return len(filtered)
+
+    async def get_problem_feed(
+        self,
+        time_from: Optional[int] = None,
+        time_till: Optional[int] = None,
+        severities: Optional[List[int]] = None,
+        acknowledged: Optional[bool] = None,
+        suppressed: Optional[bool] = None,
+        search: Optional[str] = None,
+        sort_field: str = "clock",
+        sort_order: str = "DESC",
+        limit: int = 250,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        filtered = self._filter_mock_problems(
+            time_from=time_from,
+            time_till=time_till,
+            severities=severities,
+            acknowledged=acknowledged,
+            suppressed=suppressed,
+            search=search
+        )
+
+        reverse = (sort_order.upper() == "DESC")
+        if sort_field == "severity":
+            filtered.sort(key=lambda x: int(x.get("severity", 0)), reverse=reverse)
+        elif sort_field == "name":
+            filtered.sort(key=lambda x: x.get("name", "").lower(), reverse=reverse)
+        elif sort_field == "eventid":
+            filtered.sort(key=lambda x: int(x.get("eventid", 0)), reverse=reverse)
+        else:
+            filtered.sort(key=lambda x: int(x.get("clock", 0)), reverse=reverse)
+
+        return filtered[offset : offset + limit]
+
+    async def get_problem_detail(self, event_id: str) -> Optional[Dict[str, Any]]:
+        for p in self._get_raw_mock_problems():
+            if str(p.get("eventid")) == str(event_id):
+                return p
+        return None
+
 
 

@@ -340,5 +340,126 @@ class RealZabbixAdapter(ZabbixAdapterBase):
             })
         return result
 
+    async def get_problem_count(
+        self,
+        time_from: Optional[int] = None,
+        time_till: Optional[int] = None,
+        severities: Optional[List[int]] = None,
+        acknowledged: Optional[bool] = None,
+        suppressed: Optional[bool] = None,
+        search: Optional[str] = None
+    ) -> int:
+        params: Dict[str, Any] = {
+            "countOutput": True,
+            "recent": True
+        }
+        if time_from is not None:
+            params["time_from"] = time_from
+        if time_till is not None:
+            params["time_till"] = time_till
+        if severities:
+            params["severities"] = severities
+        if acknowledged is not None:
+            params["acknowledged"] = acknowledged
+        if suppressed is not None:
+            params["suppressed"] = suppressed
+        if search:
+            params["search"] = {"name": search}
+            params["searchByAny"] = True
+
+        res = await self._call_api("problem.get", params)
+        try:
+            return int(res)
+        except (ValueError, TypeError):
+            return 0
+
+    async def get_problem_feed(
+        self,
+        time_from: Optional[int] = None,
+        time_till: Optional[int] = None,
+        severities: Optional[List[int]] = None,
+        acknowledged: Optional[bool] = None,
+        suppressed: Optional[bool] = None,
+        search: Optional[str] = None,
+        sort_field: str = "clock",
+        sort_order: str = "DESC",
+        limit: int = 250,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        valid_sortfields = {"eventid", "clock", "severity", "name"}
+        sf = sort_field if sort_field in valid_sortfields else "clock"
+        so = "ASC" if sort_order.upper() == "ASC" else "DESC"
+
+        bounded_limit = min(max(limit + offset, 1), 1000)
+        params: Dict[str, Any] = {
+            "output": [
+                "eventid", "source", "object", "objectid", "clock", "ns",
+                "r_eventid", "r_clock", "name", "acknowledged", "severity",
+                "cause_eventid", "opdata", "suppressed"
+            ],
+            "selectHosts": ["hostid", "host", "name"],
+            "selectTags": ["tag", "value"],
+            "selectAcknowledges": ["acknowledgeid", "userid", "clock", "message", "action", "old_severity", "new_severity"],
+            "selectSuppressionData": ["maintenanceid", "suppress_until"],
+            "recent": True,
+            "sortfield": [sf],
+            "sortorder": so,
+            "limit": bounded_limit
+        }
+        if time_from is not None:
+            params["time_from"] = time_from
+        if time_till is not None:
+            params["time_till"] = time_till
+        if severities:
+            params["severities"] = severities
+        if acknowledged is not None:
+            params["acknowledged"] = acknowledged
+        if suppressed is not None:
+            params["suppressed"] = suppressed
+        if search:
+            params["search"] = {"name": search}
+            params["searchByAny"] = True
+
+        raw_problems = await self._call_api("problem.get", params) or []
+        # Safe client-side pagination slice preserving application contract without unsupported offset
+        return raw_problems[offset : offset + limit] if offset > 0 or len(raw_problems) > limit else raw_problems
+
+    async def get_problem_detail(self, event_id: str) -> Optional[Dict[str, Any]]:
+        prob_params = {
+            "eventids": [event_id],
+            "output": [
+                "eventid", "source", "object", "objectid", "clock", "ns",
+                "r_eventid", "r_clock", "name", "acknowledged", "severity",
+                "cause_eventid", "opdata", "suppressed"
+            ],
+            "selectHosts": ["hostid", "host", "name"],
+            "selectTags": ["tag", "value"],
+            "selectAcknowledges": ["acknowledgeid", "userid", "clock", "message", "action", "old_severity", "new_severity"],
+            "selectSuppressionData": ["maintenanceid", "suppress_until"],
+            "recent": True
+        }
+        raw_prob = await self._call_api("problem.get", prob_params) or []
+        if not raw_prob:
+            return None
+
+        prob = raw_prob[0]
+
+        alerts = []
+        try:
+            event_params = {
+                "eventids": [event_id],
+                "output": ["eventid", "clock", "value", "name", "severity"],
+                "selectAlerts": ["alertid", "mediatypeid", "clock", "sendto", "status", "error"]
+            }
+            raw_event = await self._call_api("event.get", event_params) or []
+            if raw_event and raw_event[0].get("alerts"):
+                alerts = raw_event[0]["alerts"]
+        except Exception:
+            pass
+
+        prob["alerts"] = alerts
+        return prob
+
+
 
 

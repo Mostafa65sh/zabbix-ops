@@ -51,9 +51,10 @@ async def test_problems_endpoint():
         response = await client.get("/api/v1/problems")
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        if len(data) > 0:
-            first_p = data[0]
+        problems_list = data["items"] if isinstance(data, dict) and "items" in data else data
+        assert isinstance(problems_list, list)
+        if len(problems_list) > 0:
+            first_p = problems_list[0]
             assert "eventid" in first_p
             assert "severity" in first_p
             assert "name" in first_p
