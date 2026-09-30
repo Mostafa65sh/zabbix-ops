@@ -1,4 +1,3 @@
-import React from 'react';
 import { AlertAnalyticsPage } from './routes';
 
 export const alert_analyticsModule = {

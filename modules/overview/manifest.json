@@ -1,7 +1,8 @@
 {
   "id": "overview",
   "name": "Overview",
-  "version": "0.1.0",
+  "version": "1.0.0",
+
   "description": "Infrastructure operations overview, KPIs, and health status",
   "core_version": ">=0.2.0",
   "enabled_by_default": true,

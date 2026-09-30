@@ -46,33 +46,40 @@ function App() {
 
         {/* Module Content Area */}
         <main className="platform-content">
-          <div className="module-header-card">
-            <div className="title-row">
-              <h2>{activeModule?.name}</h2>
-              <span className="badge skeleton-badge">Phase 0.2 Skeleton</span>
-            </div>
-            <p className="module-description">{activeModule?.description}</p>
-            <div className="module-meta">
-              <span><strong>ID:</strong> {activeModule?.id}</span>
-              <span><strong>Version:</strong> {activeModule?.version}</span>
-              <span><strong>API Namespace:</strong> /api/v1/{activeModule?.id}</span>
-              <span><strong>Permissions:</strong> {activeModule?.permissions?.join(', ')}</span>
-            </div>
-          </div>
+          {activeModule?.component ? (
+            <activeModule.component />
+          ) : (
+            <>
+              <div className="module-header-card">
+                <div className="title-row">
+                  <h2>{activeModule?.name}</h2>
+                  <span className="badge skeleton-badge">Phase 0.2 Skeleton</span>
+                </div>
+                <p className="module-description">{activeModule?.description}</p>
+                <div className="module-meta">
+                  <span><strong>ID:</strong> {activeModule?.id}</span>
+                  <span><strong>Version:</strong> {activeModule?.version}</span>
+                  <span><strong>API Namespace:</strong> /api/v1/{activeModule?.id}</span>
+                  <span><strong>Permissions:</strong> {activeModule?.permissions?.join(', ')}</span>
+                </div>
+              </div>
 
-          <div className="module-body-card">
-            <div className="skeleton-placeholder">
-              <div className="pulse-circle"></div>
-              <h3>Module Skeleton Registered</h3>
-              <p>
-                This module interface is defined in <code>modules/{activeModule?.id}/</code> and is ready for business feature implementation in subsequent phases.
-              </p>
-            </div>
-          </div>
+              <div className="module-body-card">
+                <div className="skeleton-placeholder">
+                  <div className="pulse-circle"></div>
+                  <h3>Module Skeleton Registered</h3>
+                  <p>
+                    This module interface is defined in <code>modules/{activeModule?.id}/</code> and is ready for business feature implementation in subsequent phases.
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
         </main>
       </div>
     </div>
   );
+
 }
 
 export default App;

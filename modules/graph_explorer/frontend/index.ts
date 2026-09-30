@@ -1,4 +1,3 @@
-import React from 'react';
 import { GraphExplorerPage } from './routes';
 
 export const graph_explorerModule = {

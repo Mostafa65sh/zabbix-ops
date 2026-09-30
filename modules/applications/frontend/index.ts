@@ -1,4 +1,3 @@
-import React from 'react';
 import { ApplicationsPage } from './routes';
 
 export const applicationsModule = {

@@ -1,4 +1,3 @@
-import React from 'react';
 import { InfrastructureMapPage } from './routes';
 
 export const infra_mapModule = {

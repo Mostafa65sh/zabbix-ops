@@ -1,4 +1,3 @@
-import React from 'react';
 import { TopNPage } from './routes';
 
 export const top_nModule = {

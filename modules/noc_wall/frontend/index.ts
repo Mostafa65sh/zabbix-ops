@@ -1,4 +1,3 @@
-import React from 'react';
 import { NOCWallPage } from './routes';
 
 export const noc_wallModule = {

@@ -16,11 +16,19 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Module path resolution */
+    "paths": {
+      "react": ["./node_modules/@types/react"],
+      "react-dom": ["./node_modules/@types/react-dom"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime"]
+    },
+
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src", "../modules/*/frontend"]
 }

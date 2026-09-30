@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
-from app.models.schemas import HostSummary, ProblemItem, OverviewData
+from app.models.schemas import HostSummary, ProblemItem, OverviewData, EventItem
 
 
 class ZabbixAdapterBase(ABC):
@@ -28,3 +28,9 @@ class ZabbixAdapterBase(ABC):
     async def get_problems(self, limit: int = 100, severity: Optional[int] = None) -> List[ProblemItem]:
         """Retrieve recent active problems."""
         pass
+
+    @abstractmethod
+    async def get_recent_events(self, limit: int = 20) -> List[EventItem]:
+        """Retrieve recent operational events / incidents."""
+        pass
+

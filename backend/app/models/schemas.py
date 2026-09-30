@@ -42,6 +42,18 @@ class ProblemItem(BaseModel):
     host_name: Optional[str] = None
 
 
+class EventItem(BaseModel):
+    eventid: str
+    clock: int
+    value: int = 1  # 1 = problem / start, 0 = recovery / resolved
+    severity: int = 0
+    name: str
+    host_id: Optional[str] = None
+    host_name: Optional[str] = None
+    acknowledged: bool = False
+
+
+
 class OverviewData(BaseModel):
     hosts_total: int
     hosts_available: int

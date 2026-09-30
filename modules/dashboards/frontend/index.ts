@@ -1,4 +1,3 @@
-import React from 'react';
 import { DashboardBuilderPage } from './routes';
 
 export const dashboardsModule = {

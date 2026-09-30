@@ -1,4 +1,3 @@
-import React from 'react';
 import { Host360Page } from './routes';
 
 export const host360Module = {

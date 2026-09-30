@@ -1,7 +1,8 @@
 from typing import List, Optional, Dict, Any
 import httpx
 from app.adapters.zabbix.base import ZabbixAdapterBase
-from app.models.schemas import HostSummary, ProblemItem, OverviewData, ProblemCountSummary, InterfaceModel
+from app.models.schemas import HostSummary, ProblemItem, OverviewData, ProblemCountSummary, InterfaceModel, EventItem
+
 
 
 class RealZabbixAdapter(ZabbixAdapterBase):
@@ -149,3 +150,33 @@ class RealZabbixAdapter(ZabbixAdapterBase):
                 host_name=host_name
             ))
         return result
+
+    async def get_recent_events(self, limit: int = 20) -> List[EventItem]:
+        params = {
+            "output": ["eventid", "clock", "value", "severity", "name", "acknowledged"],
+            "selectHosts": ["hostid", "name"],
+            "sortfield": ["clock"],
+            "sortorder": "DESC",
+            "limit": limit
+        }
+        raw_events = await self._call_api("event.get", params)
+        result = []
+        for e in raw_events or []:
+            host_id = None
+            host_name = None
+            if e.get("hosts"):
+                host_id = str(e["hosts"][0].get("hostid"))
+                host_name = e["hosts"][0].get("name")
+
+            result.append(EventItem(
+                eventid=str(e["eventid"]),
+                clock=int(e.get("clock", 0)),
+                value=int(e.get("value", 1)),
+                severity=int(e.get("severity", 0)),
+                name=e.get("name", ""),
+                host_id=host_id,
+                host_name=host_name,
+                acknowledged=bool(int(e.get("acknowledged", 0)))
+            ))
+        return result
+

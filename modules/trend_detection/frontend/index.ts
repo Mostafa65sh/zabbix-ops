@@ -1,4 +1,3 @@
-import React from 'react';
 import { TrendDetectionPage } from './routes';
 
 export const trend_detectionModule = {

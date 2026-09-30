@@ -1,4 +1,3 @@
-import React from 'react';
 import { ProblemsPage } from './routes';
 
 export const problemsModule = {

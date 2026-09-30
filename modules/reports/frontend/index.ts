@@ -1,4 +1,3 @@
-import React from 'react';
 import { ReportsPage } from './routes';
 
 export const reportsModule = {

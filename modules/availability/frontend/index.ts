@@ -1,4 +1,3 @@
-import React from 'react';
 import { AvailabilityPage } from './routes';
 
 export const availabilityModule = {

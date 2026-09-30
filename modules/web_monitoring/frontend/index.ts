@@ -1,4 +1,3 @@
-import React from 'react';
 import { WebMonitoringPage } from './routes';
 
 export const web_monitoringModule = {

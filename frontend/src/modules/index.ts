@@ -1,20 +1,13 @@
 import { moduleRegistry } from './registry';
 import type { FrontendModuleDefinition } from './types';
+import { overviewModule } from '../../../modules/overview/frontend';
 
-// Skeletons definitions for the 21 Product Specification modules
+// Module definitions for the 21 Product Specification modules
 const moduleDefinitions: FrontendModuleDefinition[] = [
-  {
-    id: 'overview',
-    name: 'Overview',
-    version: '0.1.0',
-    description: 'Infrastructure operations overview, KPIs, and health status',
-    enabled: true,
-    route: '/overview',
-    navItem: { label: 'Overview', path: '/overview', order: 1 },
-    permissions: ['module.overview.view'],
-  },
+  overviewModule,
   {
     id: 'servers',
+
     name: 'Servers',
     version: '0.1.0',
     description: 'Server inventory, host groups, OS, hardware, and lifecycle management',

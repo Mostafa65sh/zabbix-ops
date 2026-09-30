@@ -1,4 +1,3 @@
-import React from 'react';
 import { CapacityPlanningPage } from './routes';
 
 export const capacityModule = {

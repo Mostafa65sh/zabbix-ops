@@ -1,4 +1,3 @@
-import React from 'react';
 import { GlobalSearchPage } from './routes';
 
 export const global_searchModule = {

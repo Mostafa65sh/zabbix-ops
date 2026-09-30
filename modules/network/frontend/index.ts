@@ -1,4 +1,3 @@
-import React from 'react';
 import { NetworkOperationsPage } from './routes';
 
 export const networkModule = {

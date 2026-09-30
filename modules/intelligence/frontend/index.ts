@@ -1,4 +1,3 @@
-import React from 'react';
 import { AIAndIntelligencePage } from './routes';
 
 export const intelligenceModule = {

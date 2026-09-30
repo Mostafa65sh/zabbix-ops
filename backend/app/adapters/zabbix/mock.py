@@ -1,7 +1,8 @@
 from typing import List, Optional
 import time
 from app.adapters.zabbix.base import ZabbixAdapterBase
-from app.models.schemas import HostSummary, ProblemItem, OverviewData, ProblemCountSummary, InterfaceModel
+from app.models.schemas import HostSummary, ProblemItem, OverviewData, ProblemCountSummary, InterfaceModel, EventItem
+
 
 
 class MockZabbixAdapter(ZabbixAdapterBase):
@@ -148,3 +149,60 @@ class MockZabbixAdapter(ZabbixAdapterBase):
         if severity is not None:
             res = [p for p in res if p.severity == severity]
         return res[:limit]
+
+    async def get_recent_events(self, limit: int = 20) -> List[EventItem]:
+        base_time = 1759230000
+        events = [
+            EventItem(
+                eventid="80001",
+                clock=base_time - 1800,
+                value=1,
+                severity=5,
+                name="Host is unreachable by ICMP and agent",
+                host_id="10005",
+                host_name="DEV-LEGACY-HOST",
+                acknowledged=False
+            ),
+            EventItem(
+                eventid="80002",
+                clock=base_time - 3600,
+                value=1,
+                severity=4,
+                name="High bandwidth utilization on WAN interface (>95%)",
+                host_id="10003",
+                host_name="BORDER-GATEWAY-01",
+                acknowledged=True
+            ),
+            EventItem(
+                eventid="80003",
+                clock=base_time - 5400,
+                value=0,
+                severity=3,
+                name="High memory usage resolved on SERVER-APP-01",
+                host_id="10001",
+                host_name="SERVER-APP-01",
+                acknowledged=True
+            ),
+            EventItem(
+                eventid="80004",
+                clock=base_time - 7200,
+                value=1,
+                severity=2,
+                name="Disk space utilization exceeds 85% on /var/log",
+                host_id="10001",
+                host_name="SERVER-APP-01",
+                acknowledged=False
+            ),
+            EventItem(
+                eventid="80005",
+                clock=base_time - 10800,
+                value=0,
+                severity=2,
+                name="NTP synchronization restored on SERVER-DB-PRIMARY",
+                host_id="10002",
+                host_name="SERVER-DB-PRIMARY",
+                acknowledged=True
+            )
+        ]
+        return events[:limit]
+

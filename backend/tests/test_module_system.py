@@ -179,9 +179,17 @@ async def test_system_endpoints():
 async def test_module_skeleton_endpoint():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Module skeleton route mounted under /api/v1/overview/status
-        resp = await client.get("/api/v1/overview/status")
+        # Module route mounted under /api/v1/servers/status (skeleton)
+        resp = await client.get("/api/v1/servers/status")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["module"] == "overview"
+        assert data["module"] == "servers"
         assert data["status"] == "skeleton"
+
+        # Overview module status (now operational in Phase 1)
+        ov_resp = await client.get("/api/v1/overview/status")
+        assert ov_resp.status_code == 200
+        ov_data = ov_resp.json()
+        assert ov_data["module"] == "overview"
+        assert ov_data["status"] == "operational"
+
