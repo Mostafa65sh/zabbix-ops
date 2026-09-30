@@ -1,0 +1,10 @@
+{
+  "module_id": "infra_map",
+  "permissions": [
+    {
+      "id": "module.infra_map.view",
+      "name": "View Infrastructure Map",
+      "description": "Allows read-only access to Infrastructure Map module"
+    }
+  ]
+}

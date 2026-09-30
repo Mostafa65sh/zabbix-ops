@@ -1,0 +1,19 @@
+{
+  "id": "problems",
+  "name": "Problems",
+  "version": "0.1.0",
+  "description": "Real-time problem center, active events, suppression, and acknowledge workflows",
+  "core_version": ">=0.2.0",
+  "enabled_by_default": true,
+  "dependencies": [],
+  "permissions": [
+    "module.problems.view"
+  ],
+  "backend_entry": "modules.problems.backend.routes:router",
+  "frontend_entry": "index.ts",
+  "author": "Zabbix Operations Team",
+  "tags": [
+    "problems",
+    "operations"
+  ]
+}

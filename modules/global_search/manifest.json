@@ -1,0 +1,19 @@
+{
+  "id": "global_search",
+  "name": "Global Search",
+  "version": "0.1.0",
+  "description": "Cross-platform unified search across hosts, items, problems, and services",
+  "core_version": ">=0.2.0",
+  "enabled_by_default": true,
+  "dependencies": [],
+  "permissions": [
+    "module.global_search.view"
+  ],
+  "backend_entry": "modules.global_search.backend.routes:router",
+  "frontend_entry": "index.ts",
+  "author": "Zabbix Operations Team",
+  "tags": [
+    "global_search",
+    "operations"
+  ]
+}

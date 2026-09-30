@@ -1,0 +1,19 @@
+{
+  "id": "infra_map",
+  "name": "Infrastructure Map",
+  "version": "0.1.0",
+  "description": "Visual topological relationships, dependencies, and incident overlays",
+  "core_version": ">=0.2.0",
+  "enabled_by_default": true,
+  "dependencies": [],
+  "permissions": [
+    "module.infra_map.view"
+  ],
+  "backend_entry": "modules.infra_map.backend.routes:router",
+  "frontend_entry": "index.ts",
+  "author": "Zabbix Operations Team",
+  "tags": [
+    "infra_map",
+    "operations"
+  ]
+}

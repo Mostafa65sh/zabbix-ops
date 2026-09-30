@@ -1,0 +1,19 @@
+{
+  "id": "network",
+  "name": "Network Operations",
+  "version": "0.1.0",
+  "description": "Network switch, router, interface, port utilization, and topology observability",
+  "core_version": ">=0.2.0",
+  "enabled_by_default": true,
+  "dependencies": [],
+  "permissions": [
+    "module.network.view"
+  ],
+  "backend_entry": "modules.network.backend.routes:router",
+  "frontend_entry": "index.ts",
+  "author": "Zabbix Operations Team",
+  "tags": [
+    "network",
+    "operations"
+  ]
+}

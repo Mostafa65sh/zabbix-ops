@@ -1,0 +1,19 @@
+{
+  "id": "top_n",
+  "name": "Top N",
+  "version": "0.1.0",
+  "description": "Ranked resource utilization (CPU, memory, disk, network, latency, downtime)",
+  "core_version": ">=0.2.0",
+  "enabled_by_default": true,
+  "dependencies": [],
+  "permissions": [
+    "module.top_n.view"
+  ],
+  "backend_entry": "modules.top_n.backend.routes:router",
+  "frontend_entry": "index.ts",
+  "author": "Zabbix Operations Team",
+  "tags": [
+    "top_n",
+    "operations"
+  ]
+}

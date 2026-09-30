@@ -1,0 +1,10 @@
+{
+  "module_id": "applications",
+  "permissions": [
+    {
+      "id": "module.applications.view",
+      "name": "View Applications",
+      "description": "Allows read-only access to Applications module"
+    }
+  ]
+}

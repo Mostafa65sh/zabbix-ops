@@ -1,0 +1,10 @@
+{
+  "module_id": "servers",
+  "permissions": [
+    {
+      "id": "module.servers.view",
+      "name": "View Servers",
+      "description": "Allows read-only access to Servers module"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "module_id": "overview",
+  "permissions": [
+    {
+      "id": "module.overview.view",
+      "name": "View Overview",
+      "description": "Allows read-only access to Overview module"
+    }
+  ]
+}

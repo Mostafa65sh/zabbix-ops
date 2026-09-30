@@ -1,0 +1,19 @@
+{
+  "id": "applications",
+  "name": "Applications",
+  "version": "0.1.0",
+  "description": "Application health, middleware metrics, and service relationships",
+  "core_version": ">=0.2.0",
+  "enabled_by_default": true,
+  "dependencies": [],
+  "permissions": [
+    "module.applications.view"
+  ],
+  "backend_entry": "modules.applications.backend.routes:router",
+  "frontend_entry": "index.ts",
+  "author": "Zabbix Operations Team",
+  "tags": [
+    "applications",
+    "operations"
+  ]
+}

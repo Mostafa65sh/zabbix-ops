@@ -1,0 +1,10 @@
+{
+  "module_id": "trend_detection",
+  "permissions": [
+    {
+      "id": "module.trend_detection.view",
+      "name": "View Trend Detection",
+      "description": "Allows read-only access to Trend Detection module"
+    }
+  ]
+}

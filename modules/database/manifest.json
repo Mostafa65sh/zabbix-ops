@@ -1,0 +1,19 @@
+{
+  "id": "database",
+  "name": "Database Operations",
+  "version": "0.1.0",
+  "description": "Database performance metrics for PostgreSQL, MySQL, Oracle, and SQL Server",
+  "core_version": ">=0.2.0",
+  "enabled_by_default": true,
+  "dependencies": [],
+  "permissions": [
+    "module.database.view"
+  ],
+  "backend_entry": "modules.database.backend.routes:router",
+  "frontend_entry": "index.ts",
+  "author": "Zabbix Operations Team",
+  "tags": [
+    "database",
+    "operations"
+  ]
+}

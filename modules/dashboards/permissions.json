@@ -1,0 +1,10 @@
+{
+  "module_id": "dashboards",
+  "permissions": [
+    {
+      "id": "module.dashboards.view",
+      "name": "View Dashboard Builder",
+      "description": "Allows read-only access to Dashboard Builder module"
+    }
+  ]
+}

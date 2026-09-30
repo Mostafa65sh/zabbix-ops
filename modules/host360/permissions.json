@@ -1,0 +1,10 @@
+{
+  "module_id": "host360",
+  "permissions": [
+    {
+      "id": "module.host360.view",
+      "name": "View Host 360",
+      "description": "Allows read-only access to Host 360 module"
+    }
+  ]
+}

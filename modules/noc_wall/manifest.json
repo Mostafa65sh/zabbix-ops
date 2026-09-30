@@ -1,0 +1,19 @@
+{
+  "id": "noc_wall",
+  "name": "NOC Wall",
+  "version": "0.1.0",
+  "description": "Fullscreen rotating operations wallboard for 24/7 monitoring centers",
+  "core_version": ">=0.2.0",
+  "enabled_by_default": true,
+  "dependencies": [],
+  "permissions": [
+    "module.noc_wall.view"
+  ],
+  "backend_entry": "modules.noc_wall.backend.routes:router",
+  "frontend_entry": "index.ts",
+  "author": "Zabbix Operations Team",
+  "tags": [
+    "noc_wall",
+    "operations"
+  ]
+}

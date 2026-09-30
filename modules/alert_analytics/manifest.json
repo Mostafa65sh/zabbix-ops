@@ -1,0 +1,19 @@
+{
+  "id": "alert_analytics",
+  "name": "Alert Analytics",
+  "version": "0.1.0",
+  "description": "MTTR, MTBF, alert volume distribution, and noisy trigger analysis",
+  "core_version": ">=0.2.0",
+  "enabled_by_default": true,
+  "dependencies": [],
+  "permissions": [
+    "module.alert_analytics.view"
+  ],
+  "backend_entry": "modules.alert_analytics.backend.routes:router",
+  "frontend_entry": "index.ts",
+  "author": "Zabbix Operations Team",
+  "tags": [
+    "alert_analytics",
+    "operations"
+  ]
+}

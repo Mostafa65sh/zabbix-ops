@@ -1,0 +1,10 @@
+{
+  "module_id": "global_search",
+  "permissions": [
+    {
+      "id": "module.global_search.view",
+      "name": "View Global Search",
+      "description": "Allows read-only access to Global Search module"
+    }
+  ]
+}

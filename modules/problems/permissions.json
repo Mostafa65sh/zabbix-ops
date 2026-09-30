@@ -1,0 +1,10 @@
+{
+  "module_id": "problems",
+  "permissions": [
+    {
+      "id": "module.problems.view",
+      "name": "View Problems",
+      "description": "Allows read-only access to Problems module"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "servers",
+  "name": "Servers",
+  "version": "0.1.0",
+  "description": "Server inventory, host groups, OS, hardware, and lifecycle management",
+  "core_version": ">=0.2.0",
+  "enabled_by_default": true,
+  "dependencies": [],
+  "permissions": [
+    "module.servers.view"
+  ],
+  "backend_entry": "modules.servers.backend.routes:router",
+  "frontend_entry": "index.ts",
+  "author": "Zabbix Operations Team",
+  "tags": [
+    "servers",
+    "operations"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "module_id": "alert_analytics",
+  "permissions": [
+    {
+      "id": "module.alert_analytics.view",
+      "name": "View Alert Analytics",
+      "description": "Allows read-only access to Alert Analytics module"
+    }
+  ]
+}

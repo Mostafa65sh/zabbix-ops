@@ -1,0 +1,19 @@
+{
+  "id": "trend_detection",
+  "name": "Trend Detection",
+  "version": "0.1.0",
+  "description": "Sustained degradation, baseline comparison, and anomaly candidate identification",
+  "core_version": ">=0.2.0",
+  "enabled_by_default": true,
+  "dependencies": [],
+  "permissions": [
+    "module.trend_detection.view"
+  ],
+  "backend_entry": "modules.trend_detection.backend.routes:router",
+  "frontend_entry": "index.ts",
+  "author": "Zabbix Operations Team",
+  "tags": [
+    "trend_detection",
+    "operations"
+  ]
+}

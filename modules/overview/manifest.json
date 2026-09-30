@@ -1,0 +1,19 @@
+{
+  "id": "overview",
+  "name": "Overview",
+  "version": "0.1.0",
+  "description": "Infrastructure operations overview, KPIs, and health status",
+  "core_version": ">=0.2.0",
+  "enabled_by_default": true,
+  "dependencies": [],
+  "permissions": [
+    "module.overview.view"
+  ],
+  "backend_entry": "modules.overview.backend.routes:router",
+  "frontend_entry": "index.ts",
+  "author": "Zabbix Operations Team",
+  "tags": [
+    "overview",
+    "operations"
+  ]
+}

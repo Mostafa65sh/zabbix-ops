@@ -1,0 +1,19 @@
+{
+  "id": "reports",
+  "name": "Reports",
+  "version": "0.1.0",
+  "description": "Scheduled and on-demand PDF/CSV availability, SLA, and capacity reports",
+  "core_version": ">=0.2.0",
+  "enabled_by_default": true,
+  "dependencies": [],
+  "permissions": [
+    "module.reports.view"
+  ],
+  "backend_entry": "modules.reports.backend.routes:router",
+  "frontend_entry": "index.ts",
+  "author": "Zabbix Operations Team",
+  "tags": [
+    "reports",
+    "operations"
+  ]
+}

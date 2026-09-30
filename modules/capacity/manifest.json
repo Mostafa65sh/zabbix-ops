@@ -1,0 +1,19 @@
+{
+  "id": "capacity",
+  "name": "Capacity Planning",
+  "version": "0.1.0",
+  "description": "Resource growth forecasting, threshold tracking, and exhaustion estimation",
+  "core_version": ">=0.2.0",
+  "enabled_by_default": true,
+  "dependencies": [],
+  "permissions": [
+    "module.capacity.view"
+  ],
+  "backend_entry": "modules.capacity.backend.routes:router",
+  "frontend_entry": "index.ts",
+  "author": "Zabbix Operations Team",
+  "tags": [
+    "capacity",
+    "operations"
+  ]
+}

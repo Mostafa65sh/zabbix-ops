@@ -1,0 +1,10 @@
+{
+  "module_id": "web_monitoring",
+  "permissions": [
+    {
+      "id": "module.web_monitoring.view",
+      "name": "View Web Monitoring",
+      "description": "Allows read-only access to Web Monitoring module"
+    }
+  ]
+}

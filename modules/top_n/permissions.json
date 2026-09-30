@@ -1,0 +1,10 @@
+{
+  "module_id": "top_n",
+  "permissions": [
+    {
+      "id": "module.top_n.view",
+      "name": "View Top N",
+      "description": "Allows read-only access to Top N module"
+    }
+  ]
+}

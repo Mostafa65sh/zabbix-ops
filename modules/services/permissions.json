@@ -1,0 +1,10 @@
+{
+  "module_id": "services",
+  "permissions": [
+    {
+      "id": "module.services.view",
+      "name": "View Services",
+      "description": "Allows read-only access to Services module"
+    }
+  ]
+}

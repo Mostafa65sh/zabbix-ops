@@ -1,0 +1,19 @@
+{
+  "id": "availability",
+  "name": "Availability",
+  "version": "0.1.0",
+  "description": "Infrastructure and SLA availability reporting and downtime timelines",
+  "core_version": ">=0.2.0",
+  "enabled_by_default": true,
+  "dependencies": [],
+  "permissions": [
+    "module.availability.view"
+  ],
+  "backend_entry": "modules.availability.backend.routes:router",
+  "frontend_entry": "index.ts",
+  "author": "Zabbix Operations Team",
+  "tags": [
+    "availability",
+    "operations"
+  ]
+}

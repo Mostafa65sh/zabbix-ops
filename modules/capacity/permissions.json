@@ -1,0 +1,10 @@
+{
+  "module_id": "capacity",
+  "permissions": [
+    {
+      "id": "module.capacity.view",
+      "name": "View Capacity Planning",
+      "description": "Allows read-only access to Capacity Planning module"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "web_monitoring",
+  "name": "Web Monitoring",
+  "version": "0.1.0",
+  "description": "HTTP/S scenario health, response times, SSL/TLS, and URL availability",
+  "core_version": ">=0.2.0",
+  "enabled_by_default": true,
+  "dependencies": [],
+  "permissions": [
+    "module.web_monitoring.view"
+  ],
+  "backend_entry": "modules.web_monitoring.backend.routes:router",
+  "frontend_entry": "index.ts",
+  "author": "Zabbix Operations Team",
+  "tags": [
+    "web_monitoring",
+    "operations"
+  ]
+}

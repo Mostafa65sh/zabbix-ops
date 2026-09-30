@@ -1,0 +1,10 @@
+{
+  "module_id": "availability",
+  "permissions": [
+    {
+      "id": "module.availability.view",
+      "name": "View Availability",
+      "description": "Allows read-only access to Availability module"
+    }
+  ]
+}

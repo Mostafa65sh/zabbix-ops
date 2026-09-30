@@ -1,0 +1,19 @@
+{
+  "id": "intelligence",
+  "name": "AI & Intelligence",
+  "version": "0.1.0",
+  "description": "Future operational assistant, incident summarization, and root-cause candidate analysis",
+  "core_version": ">=0.2.0",
+  "enabled_by_default": true,
+  "dependencies": [],
+  "permissions": [
+    "module.intelligence.view"
+  ],
+  "backend_entry": "modules.intelligence.backend.routes:router",
+  "frontend_entry": "index.ts",
+  "author": "Zabbix Operations Team",
+  "tags": [
+    "intelligence",
+    "operations"
+  ]
+}

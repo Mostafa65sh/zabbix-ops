@@ -1,0 +1,10 @@
+{
+  "module_id": "intelligence",
+  "permissions": [
+    {
+      "id": "module.intelligence.view",
+      "name": "View AI & Intelligence",
+      "description": "Allows read-only access to AI & Intelligence module"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "dashboards",
+  "name": "Dashboard Builder",
+  "version": "0.1.0",
+  "description": "Configurable custom operational dashboards and NOC wall layouts",
+  "core_version": ">=0.2.0",
+  "enabled_by_default": true,
+  "dependencies": [],
+  "permissions": [
+    "module.dashboards.view"
+  ],
+  "backend_entry": "modules.dashboards.backend.routes:router",
+  "frontend_entry": "index.ts",
+  "author": "Zabbix Operations Team",
+  "tags": [
+    "dashboards",
+    "operations"
+  ]
+}

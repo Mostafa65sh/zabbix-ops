@@ -1,0 +1,10 @@
+{
+  "module_id": "database",
+  "permissions": [
+    {
+      "id": "module.database.view",
+      "name": "View Database Operations",
+      "description": "Allows read-only access to Database Operations module"
+    }
+  ]
+}

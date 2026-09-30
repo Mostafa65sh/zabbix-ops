@@ -1,0 +1,10 @@
+{
+  "module_id": "graph_explorer",
+  "permissions": [
+    {
+      "id": "module.graph_explorer.view",
+      "name": "View Graph Explorer",
+      "description": "Allows read-only access to Graph Explorer module"
+    }
+  ]
+}

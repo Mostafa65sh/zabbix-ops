@@ -1,0 +1,10 @@
+{
+  "module_id": "network",
+  "permissions": [
+    {
+      "id": "module.network.view",
+      "name": "View Network Operations",
+      "description": "Allows read-only access to Network Operations module"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "module_id": "noc_wall",
+  "permissions": [
+    {
+      "id": "module.noc_wall.view",
+      "name": "View NOC Wall",
+      "description": "Allows read-only access to NOC Wall module"
+    }
+  ]
+}

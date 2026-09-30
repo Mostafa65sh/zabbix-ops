@@ -1,0 +1,10 @@
+{
+  "module_id": "reports",
+  "permissions": [
+    {
+      "id": "module.reports.view",
+      "name": "View Reports",
+      "description": "Allows read-only access to Reports module"
+    }
+  ]
+}
