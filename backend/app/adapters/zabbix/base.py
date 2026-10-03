@@ -81,5 +81,41 @@ class ZabbixAdapterBase(ABC):
         """Retrieve single problem detail and associated alert history via event.get."""
         pass
 
+    @abstractmethod
+    async def get_slas(
+        self,
+        sla_ids: Optional[List[str]] = None,
+        service_ids: Optional[List[str]] = None,
+        search: Optional[str] = None,
+        limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """Retrieve SLA definitions with schedule and excluded downtimes via sla.get."""
+        pass
+
+    @abstractmethod
+    async def get_sla_sli(
+        self,
+        slaid: str,
+        period_from: Optional[int] = None,
+        period_to: Optional[int] = None,
+        periods: Optional[int] = None,
+        service_ids: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """Retrieve authoritative SLI calculations for an SLA via sla.getsli."""
+        pass
+
+    @abstractmethod
+    async def get_services(
+        self,
+        service_ids: Optional[List[str]] = None,
+        sla_ids: Optional[List[str]] = None,
+        search: Optional[str] = None,
+        status: Optional[int] = None,
+        limit: int = 500
+    ) -> List[Dict[str, Any]]:
+        """Retrieve business services with status, tags, and problem events via service.get."""
+        pass
+
+
 
 

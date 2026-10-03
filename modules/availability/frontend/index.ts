@@ -1,17 +1,21 @@
 import { AvailabilityPage } from './routes';
 
+export * from './types';
+export * from './api';
+export { AvailabilityPage } from './routes';
+
 export const availabilityModule = {
   id: 'availability',
   name: 'Availability',
-  version: '0.1.0',
-  description: 'Infrastructure and SLA availability reporting and downtime timelines',
+  version: '1.0.0',
+  description: 'Business service availability, SLA compliance, and outage analysis',
   enabled: true,
   route: '/availability',
   navItem: {
     label: 'Availability',
     path: '/availability',
-    order: 4
+    order: 4,
   },
   permissions: ['module.availability.view'],
-  component: AvailabilityPage
+  component: AvailabilityPage,
 };

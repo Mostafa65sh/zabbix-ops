@@ -977,5 +977,317 @@ class MockZabbixAdapter(ZabbixAdapterBase):
                 return p
         return None
 
+    def _get_raw_mock_slas(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "slaid": "sla_01",
+                "name": "Critical Financial Services SLA",
+                "period": 2,  # Monthly
+                "slo": 99.90,
+                "effective_date": 1704067200,
+                "timezone": "UTC",
+                "status": "1",
+                "description": "High-availability 99.90% SLA for production banking operations and core ledger.",
+                "schedule": [{"period_from": 0, "period_to": 604800}],
+                "excluded_downtimes": [
+                    {
+                        "name": "Weekly Storage Maintenance",
+                        "period_from": 1727568000,
+                        "period_to": 1727582400
+                    }
+                ],
+                "service_tags": [
+                    {"tag": "tier", "operator": "0", "value": "banking"},
+                    {"tag": "tier", "operator": "0", "value": "data"}
+                ]
+            },
+            {
+                "slaid": "sla_02",
+                "name": "Customer Web Applications SLA",
+                "period": 2,  # Monthly
+                "slo": 99.50,
+                "effective_date": 1704067200,
+                "timezone": "UTC",
+                "status": "1",
+                "description": "Customer-facing portal and reporting web service uptime objective.",
+                "schedule": [{"period_from": 0, "period_to": 604800}],
+                "excluded_downtimes": [],
+                "service_tags": [
+                    {"tag": "app", "operator": "0", "value": "portal"},
+                    {"tag": "app", "operator": "0", "value": "reporting"}
+                ]
+            }
+        ]
+
+    def _get_raw_mock_services(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "serviceid": "service_01",
+                "name": "Core Banking Service",
+                "status": 0,  # OK
+                "algorithm": 1,
+                "created_at": 1704067200,
+                "description": "Core transaction processing ledger and transaction router",
+                "problem_events": [],
+                "tags": [
+                    {"tag": "tier", "value": "banking"},
+                    {"tag": "environment", "value": "production"}
+                ],
+                "status_rules": []
+            },
+            {
+                "serviceid": "service_02",
+                "name": "Customer Portal",
+                "status": 4,  # High problem active
+                "algorithm": 1,
+                "created_at": 1704067200,
+                "description": "Public user dashboard and account self-service interface",
+                "problem_events": [
+                    {
+                        "eventid": "90002",
+                        "severity": 4,
+                        "name": "High bandwidth utilization on WAN interface (>95%)"
+                    }
+                ],
+                "tags": [
+                    {"tag": "app", "value": "portal"},
+                    {"tag": "environment", "value": "production"}
+                ],
+                "status_rules": []
+            },
+            {
+                "serviceid": "service_03",
+                "name": "Data Warehouse Ingestion",
+                "status": 0,  # OK
+                "algorithm": 1,
+                "created_at": 1704067200,
+                "description": "Batch ETL and transactional replication pipeline",
+                "problem_events": [],
+                "tags": [
+                    {"tag": "tier", "value": "data"},
+                    {"tag": "environment", "value": "production"}
+                ],
+                "status_rules": []
+            },
+            {
+                "serviceid": "service_04",
+                "name": "Internal Sandbox Cluster",
+                "status": 0,  # OK
+                "algorithm": 0,
+                "created_at": 1727740800,
+                "description": "Experimental developer staging sandbox",
+                "problem_events": [],
+                "tags": [
+                    {"tag": "environment", "value": "sandbox"}
+                ],
+                "status_rules": []
+            },
+            {
+                "serviceid": "service_05",
+                "name": "Legacy Reporting Service",
+                "status": 2,  # Warning
+                "algorithm": 1,
+                "created_at": 1704067200,
+                "description": "End-of-month batch analytics and PDF statement generator",
+                "problem_events": [
+                    {
+                        "eventid": "90003",
+                        "severity": 2,
+                        "name": "Disk space utilization exceeds 85% on /var/log"
+                    }
+                ],
+                "tags": [
+                    {"tag": "app", "value": "reporting"},
+                    {"tag": "tier", "value": "backend"}
+                ],
+                "status_rules": []
+            },
+            {
+                "serviceid": "service_06",
+                "name": "Authentication Gateway",
+                "status": 0,  # OK
+                "algorithm": 1,
+                "created_at": 1704067200,
+                "description": "OAuth2/OIDC SSO IdP identity broker",
+                "problem_events": [],
+                "tags": [
+                    {"tag": "tier", "value": "banking"},
+                    {"tag": "role", "value": "security"}
+                ],
+                "status_rules": []
+            }
+        ]
+
+    async def get_slas(
+        self,
+        sla_ids: Optional[List[str]] = None,
+        service_ids: Optional[List[str]] = None,
+        search: Optional[str] = None,
+        limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        slas = self._get_raw_mock_slas()
+        if sla_ids:
+            slas = [s for s in slas if s["slaid"] in sla_ids]
+        if search:
+            q = search.lower()
+            slas = [s for s in slas if q in s["name"].lower() or q in s.get("description", "").lower()]
+        return slas[:limit]
+
+    async def get_services(
+        self,
+        service_ids: Optional[List[str]] = None,
+        sla_ids: Optional[List[str]] = None,
+        search: Optional[str] = None,
+        status: Optional[int] = None,
+        limit: int = 500
+    ) -> List[Dict[str, Any]]:
+        services = self._get_raw_mock_services()
+        if service_ids:
+            services = [s for s in services if s["serviceid"] in service_ids]
+        if status is not None:
+            services = [s for s in services if s["status"] == status]
+        if search:
+            q = search.lower()
+            services = [s for s in services if q in s["name"].lower() or q in s.get("description", "").lower()]
+
+        if sla_ids:
+            # Filter services matching the tags of the specified SLAs
+            slas = [s for s in self._get_raw_mock_slas() if s["slaid"] in sla_ids]
+            matching_services = []
+            for s in services:
+                for sla in slas:
+                    sla_tags = [(t.get("tag"), t.get("value")) for t in sla.get("service_tags", [])]
+                    srv_tags = [(t.get("tag"), t.get("value")) for t in s.get("tags", [])]
+                    if any(st in srv_tags for st in sla_tags):
+                        matching_services.append(s)
+                        break
+            services = matching_services
+
+        return services[:limit]
+
+    async def get_sla_sli(
+        self,
+        slaid: str,
+        period_from: Optional[int] = None,
+        period_to: Optional[int] = None,
+        periods: Optional[int] = None,
+        service_ids: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        num_periods = min(max(periods or 12, 1), 100)
+        now = int(time.time())
+        month_seconds = 2592000
+
+        # Build periods descending then reverse
+        reporting_periods = []
+        for i in range(num_periods):
+            p_to = now - (i * month_seconds)
+            p_from = p_to - month_seconds
+            reporting_periods.append({"period_from": p_from, "period_to": p_to})
+        reporting_periods.reverse()
+
+        # Map services in this SLA
+        all_services = self._get_raw_mock_services()
+        if service_ids:
+            target_services = [s for s in all_services if s["serviceid"] in service_ids]
+        else:
+            # Default services for slaid
+            if slaid == "sla_01":
+                target_services = [s for s in all_services if s["serviceid"] in ("service_01", "service_03", "service_06")]
+            elif slaid == "sla_02":
+                target_services = [s for s in all_services if s["serviceid"] in ("service_02", "service_05")]
+            else:
+                target_services = [s for s in all_services if s["serviceid"] == "service_04"]
+
+        target_service_ids = [s["serviceid"] for s in target_services]
+
+        # Generate SLI cell matrix [ [cell_for_service_0, cell_for_service_1, ...] for each period ]
+        sli_matrix = []
+        for p_idx, p in enumerate(reporting_periods):
+            period_cells = []
+            is_latest_period = (p_idx == len(reporting_periods) - 1)
+
+            for s in target_services:
+                sid = s["serviceid"]
+                if sid == "service_01":
+                    # Core Banking: compliant (99.98%)
+                    period_cells.append({
+                        "uptime": 2591480,
+                        "downtime": 520,
+                        "sli": 99.98,
+                        "error_budget": 2072,
+                        "excluded_downtimes": []
+                    })
+                elif sid == "service_02":
+                    # Customer Portal: breached in latest period (98.85%), compliant in past
+                    sli_val = 98.85 if is_latest_period else 99.70
+                    dt = 29808 if is_latest_period else 7776
+                    eb = -16848 if is_latest_period else 5184
+                    period_cells.append({
+                        "uptime": 2562192 if is_latest_period else 2584224,
+                        "downtime": dt,
+                        "sli": sli_val,
+                        "error_budget": eb,
+                        "excluded_downtimes": []
+                    })
+                elif sid == "service_03":
+                    # Data Warehouse: 100% with excluded downtime
+                    period_cells.append({
+                        "uptime": 2577600,
+                        "downtime": 0,
+                        "sli": 100.0,
+                        "error_budget": 2577,
+                        "excluded_downtimes": [
+                            {
+                                "name": "Weekly Storage Maintenance",
+                                "period_from": p["period_from"] + 86400,
+                                "period_to": p["period_from"] + 100800
+                            }
+                        ]
+                    })
+                elif sid == "service_04":
+                    # Sandbox: NO DATA (-1.0)
+                    period_cells.append({
+                        "uptime": 0,
+                        "downtime": 0,
+                        "sli": -1.0,
+                        "error_budget": 0,
+                        "excluded_downtimes": []
+                    })
+                elif sid == "service_05":
+                    # Legacy Reporting: 99.54%
+                    period_cells.append({
+                        "uptime": 2580000,
+                        "downtime": 12000,
+                        "sli": 99.54,
+                        "error_budget": 960,
+                        "excluded_downtimes": []
+                    })
+                elif sid == "service_06":
+                    # Auth Gateway: 100%
+                    period_cells.append({
+                        "uptime": 2592000,
+                        "downtime": 0,
+                        "sli": 100.0,
+                        "error_budget": 2592,
+                        "excluded_downtimes": []
+                    })
+                else:
+                    period_cells.append({
+                        "uptime": 0,
+                        "downtime": 0,
+                        "sli": -1.0,
+                        "error_budget": 0,
+                        "excluded_downtimes": []
+                    })
+
+            sli_matrix.append(period_cells)
+
+        return {
+            "periods": reporting_periods,
+            "serviceids": target_service_ids,
+            "sli": sli_matrix
+        }
+
+
 
 

@@ -1,7 +1,7 @@
 {
   "id": "availability",
   "name": "Availability",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Infrastructure and SLA availability reporting and downtime timelines",
   "core_version": ">=0.2.0",
   "enabled_by_default": true,

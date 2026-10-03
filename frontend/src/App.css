@@ -3017,3 +3017,197 @@ body {
     padding: 8px 16px;
   }
 }
+
+/* ==============================================================================
+   MODULE 04 — AVAILABILITY STYLES
+   ============================================================================== */
+
+.badge-compliant {
+  background-color: rgba(16, 185, 129, 0.18);
+  color: var(--accent-green);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.badge-breached {
+  background-color: rgba(239, 68, 68, 0.18);
+  color: var(--accent-red);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.badge-not-configured {
+  background-color: rgba(148, 163, 184, 0.15);
+  color: var(--text-dim);
+  border: 1px solid var(--border-color);
+}
+
+.badge-problem-count {
+  background-color: rgba(249, 115, 22, 0.18);
+  color: var(--accent-orange);
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  font-size: 0.75rem;
+}
+
+.slo-reference-badge {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background-color: var(--bg-card-hover);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+}
+
+.trend-container-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 16px;
+}
+
+.trend-controls-bar {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.trend-chart-wrapper {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.trend-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.trend-chart-header h4 {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 1rem;
+}
+
+.trend-bars-container {
+  display: flex;
+  gap: 12px;
+  height: 160px;
+  align-items: flex-end;
+  padding-top: 24px;
+  padding-bottom: 8px;
+  overflow-x: auto;
+}
+
+.trend-bar-column {
+  flex: 1;
+  min-width: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+
+.trend-bar-value {
+  font-size: 0.75rem;
+  font-family: monospace;
+  font-weight: bold;
+  margin-bottom: 6px;
+  color: var(--text-main);
+}
+
+.trend-bar-track {
+  flex: 1;
+  width: 24px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.trend-bar-fill {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.3s ease;
+}
+
+.trend-bar-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.service-tags-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.tag-pill {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  background-color: var(--bg-card-hover);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  color: var(--text-muted);
+}
+
+.drawer-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.problem-event-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+.problem-event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.problem-event-title {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-main);
+}
+
+.tags-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-chip {
+  display: inline-flex;
+  font-size: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.tag-chip-key {
+  background-color: var(--bg-card-hover);
+  padding: 2px 6px;
+  color: var(--text-muted);
+}
+
+.tag-chip-val {
+  background-color: var(--bg-secondary);
+  padding: 2px 6px;
+  color: var(--text-main);
+  font-weight: 500;
+}

@@ -460,6 +460,86 @@ class RealZabbixAdapter(ZabbixAdapterBase):
         prob["alerts"] = alerts
         return prob
 
+    async def get_slas(
+        self,
+        sla_ids: Optional[List[str]] = None,
+        service_ids: Optional[List[str]] = None,
+        search: Optional[str] = None,
+        limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        # Zabbix sla.get does not support offset. Bounded limit strictly enforced.
+        params: Dict[str, Any] = {
+            "output": ["slaid", "name", "period", "slo", "effective_date", "timezone", "status", "description"],
+            "selectSchedule": ["period_from", "period_to"],
+            "selectExcludedDowntimes": ["name", "period_from", "period_to"],
+            "selectServiceTags": ["tag", "operator", "value"],
+            "limit": min(max(limit, 1), 500)
+        }
+        if sla_ids:
+            params["slaids"] = sla_ids
+        if service_ids:
+            params["serviceids"] = service_ids
+        if search:
+            params["search"] = {"name": search}
+            params["searchByAny"] = True
+
+        res = await self._call_api("sla.get", params)
+        return res or []
+
+    async def get_sla_sli(
+        self,
+        slaid: str,
+        period_from: Optional[int] = None,
+        period_to: Optional[int] = None,
+        periods: Optional[int] = None,
+        service_ids: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        # Zabbix sla.getsli requires single slaid.
+        params: Dict[str, Any] = {
+            "slaid": slaid
+        }
+        if period_from is not None:
+            params["period_from"] = period_from
+        if period_to is not None:
+            params["period_to"] = period_to
+        if periods is not None:
+            params["periods"] = min(max(periods, 1), 100)
+        if service_ids:
+            params["serviceids"] = service_ids
+
+        res = await self._call_api("sla.getsli", params)
+        return res or {}
+
+    async def get_services(
+        self,
+        service_ids: Optional[List[str]] = None,
+        sla_ids: Optional[List[str]] = None,
+        search: Optional[str] = None,
+        status: Optional[int] = None,
+        limit: int = 500
+    ) -> List[Dict[str, Any]]:
+        # Zabbix service.get does not support offset. Bounded query enforced.
+        params: Dict[str, Any] = {
+            "output": ["serviceid", "name", "status", "algorithm", "created_at", "description"],
+            "selectProblemEvents": ["eventid", "severity", "name"],
+            "selectTags": ["tag", "value"],
+            "selectStatusRules": ["type", "limit_value", "limit_status", "new_status"],
+            "limit": min(max(limit, 1), 1000)
+        }
+        if service_ids:
+            params["serviceids"] = service_ids
+        if sla_ids:
+            params["slaids"] = sla_ids
+        if status is not None:
+            params["filter"] = {"status": status}
+        if search:
+            params["search"] = {"name": search}
+            params["searchByAny"] = True
+
+        res = await self._call_api("service.get", params)
+        return res or []
+
+
 
 
 

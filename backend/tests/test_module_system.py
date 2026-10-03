@@ -179,12 +179,21 @@ async def test_system_endpoints():
 async def test_module_skeleton_endpoint():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Module route mounted under /api/v1/availability/status (skeleton)
-        resp = await client.get("/api/v1/availability/status")
+        # Module route mounted under /api/v1/host360/status (skeleton)
+        resp = await client.get("/api/v1/host360/status")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["module"] == "availability"
+        assert data["module"] == "host360"
         assert data["status"] == "skeleton"
+
+        # Availability module status (operational in Module 04)
+        avail_resp = await client.get("/api/v1/availability/status")
+        assert avail_resp.status_code == 200
+        avail_data = avail_resp.json()
+        assert avail_data["module"] == "availability"
+        assert avail_data["status"] == "operational"
+        assert avail_data["version"] == "1.0.0"
+
 
         # Problems module status (operational in Module 03)
         prob_resp = await client.get("/api/v1/problems/status")

@@ -3,22 +3,14 @@ import type { FrontendModuleDefinition } from './types';
 import { overviewModule } from '../../../modules/overview/frontend';
 import { serversModule } from '../../../modules/servers/frontend';
 import { problemsModule } from '../../../modules/problems/frontend';
+import { availabilityModule } from '../../../modules/availability/frontend';
 
 // Module definitions for the 21 Product Specification modules
 const moduleDefinitions: FrontendModuleDefinition[] = [
   overviewModule,
   serversModule,
   problemsModule,
-  {
-    id: 'availability',
-    name: 'Availability',
-    version: '0.1.0',
-    description: 'Infrastructure and SLA availability reporting and downtime timelines',
-    enabled: true,
-    route: '/availability',
-    navItem: { label: 'Availability', path: '/availability', order: 4 },
-    permissions: ['module.availability.view'],
-  },
+  availabilityModule,
   {
     id: 'host360',
     name: 'Host 360',
