@@ -6,6 +6,7 @@ import { problemsModule } from '../../../modules/problems/frontend';
 import { availabilityModule } from '../../../modules/availability/frontend';
 import { host360Module } from '../../../modules/host360/frontend';
 import { top_nModule } from '../../../modules/top_n/frontend';
+import { graph_explorerModule } from '../../../modules/graph_explorer/frontend';
 
 // Module definitions for the 21 Product Specification modules
 const moduleDefinitions: FrontendModuleDefinition[] = [
@@ -15,16 +16,7 @@ const moduleDefinitions: FrontendModuleDefinition[] = [
   availabilityModule,
   host360Module,
   top_nModule,
-  {
-    id: 'graph_explorer',
-    name: 'Graph Explorer',
-    version: '0.1.0',
-    description: 'Interactive multi-series metric visualization and comparison',
-    enabled: true,
-    route: '/graphs',
-    navItem: { label: 'Graph Explorer', path: '/graphs', order: 7 },
-    permissions: ['module.graph_explorer.view'],
-  },
+  graph_explorerModule,
   {
     id: 'global_search',
     name: 'Global Search',

@@ -226,3 +226,11 @@ async def test_module_skeleton_endpoint():
         assert top_n_data["status"] == "operational"
         assert top_n_data["version"] == "1.0.0"
 
+        # Graph Explorer module status (now operational in Module 07)
+        graph_resp = await client.get("/api/v1/graph_explorer/status")
+        assert graph_resp.status_code == 200
+        graph_data = graph_resp.json()
+        assert graph_data["module"] == "graph_explorer"
+        assert graph_data["status"] == "operational"
+        assert graph_data["version"] == "1.0.0"
+
