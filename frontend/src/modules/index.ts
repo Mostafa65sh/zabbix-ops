@@ -7,6 +7,7 @@ import { availabilityModule } from '../../../modules/availability/frontend';
 import { host360Module } from '../../../modules/host360/frontend';
 import { top_nModule } from '../../../modules/top_n/frontend';
 import { graph_explorerModule } from '../../../modules/graph_explorer/frontend';
+import { global_searchModule } from '../../../modules/global_search/frontend';
 
 // Module definitions for the 21 Product Specification modules
 const moduleDefinitions: FrontendModuleDefinition[] = [
@@ -17,16 +18,7 @@ const moduleDefinitions: FrontendModuleDefinition[] = [
   host360Module,
   top_nModule,
   graph_explorerModule,
-  {
-    id: 'global_search',
-    name: 'Global Search',
-    version: '0.1.0',
-    description: 'Cross-platform unified search across hosts, items, problems, and services',
-    enabled: true,
-    route: '/search',
-    navItem: { label: 'Global Search', path: '/search', order: 8 },
-    permissions: ['module.global_search.view'],
-  },
+  global_searchModule,
   {
     id: 'network',
     name: 'Network Operations',

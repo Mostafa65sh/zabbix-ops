@@ -1,7 +1,7 @@
 {
   "id": "global_search",
   "name": "Global Search",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Cross-platform unified search across hosts, items, problems, and services",
   "core_version": ">=0.2.0",
   "enabled_by_default": true,
