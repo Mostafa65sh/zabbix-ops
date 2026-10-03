@@ -236,3 +236,155 @@ async def test_pag01_explicit_truncation_state():
     res = await service.get_services(page=1, page_size=25)
     assert "is_truncated" in res.summary
 
+
+class LargeSlaFailureSimulationAdapter(MockZabbixAdapter):
+    """
+    Simulates enterprise with 25 distinct SLAs and 25 services.
+    SLA 1 -> Service 1
+    SLA 2 -> Service 2
+    ...
+    SLA 25 -> Service 25
+    Also Service 25 additionally belongs to SLA 1.
+    """
+    def __init__(self):
+        super().__init__()
+        self.slas = [
+            {
+                "slaid": str(i),
+                "name": f"Enterprise SLA {i}",
+                "period": 2,
+                "slo": 99.0 + (i % 5) * 0.1,
+                "timezone": "UTC",
+                "status": "1",
+                "excluded_downtimes": []
+            }
+            for i in range(1, 26)
+        ]
+        self.services = [
+            {
+                "serviceid": f"srv_{i}",
+                "name": f"Business Service {i}",
+                "status": 0,
+                "tags": [],
+                "problem_events": []
+            }
+            for i in range(1, 26)
+        ]
+
+    async def get_slas(self, sla_ids=None, service_ids=None, search=None, limit=100):
+        res = self.slas
+        if sla_ids:
+            res = [s for s in res if s["slaid"] in sla_ids]
+        return res[:limit]
+
+    async def get_services(self, service_ids=None, sla_ids=None, search=None, status=None, limit=500):
+        res = self.services
+        if service_ids:
+            res = [s for s in res if s["serviceid"] in service_ids]
+        return res[:limit]
+
+    async def get_sla_sli(self, slaid, period_from=None, period_to=None, periods=None, service_ids=None):
+        # SLA i matches srv_i. In addition, SLA 1 also matches srv_25.
+        idx = int(slaid)
+        matched_sids = [f"srv_{idx}"]
+        if slaid == "1":
+            matched_sids.append("srv_25")
+        if service_ids:
+            matched_sids = [sid for sid in matched_sids if sid in service_ids]
+
+        cells = []
+        for sid in matched_sids:
+            cells.append({
+                "uptime": 2592000,
+                "downtime": 0,
+                "sli": 100.0,
+                "error_budget": 2592,
+                "excluded_downtimes": []
+            })
+        return {
+            "periods": [{"period_from": 1000, "period_to": 2000}],
+            "serviceids": matched_sids,
+            "sli": [cells]
+        }
+
+
+@pytest.mark.asyncio
+async def test_srv01_25_distinct_slas_all_receive_authoritative_telemetry():
+    """
+    CRITICAL SRV-01 REGRESSION TEST:
+    25 services across 25 distinct SLAs.
+    Under the previous limit (min(candidate_slas, 10)), services 11 to 25 would be NO_DATA!
+    Under the correct architecture:
+    EVERY single service from srv_1 to srv_25 MUST receive valid SLI telemetry (sli_current == 100.0)
+    and must NEVER be marked NO_DATA.
+    """
+    adapter = LargeSlaFailureSimulationAdapter()
+    service = AvailabilityService(adapter=adapter)
+
+    # Fetch page of 25 services
+    res = await service.get_services(page=1, page_size=25)
+    assert len(res.items) == 25
+
+    # Check services 11 to 24 specifically
+    for i in range(11, 25):
+        sid = f"srv_{i}"
+        item = next((s for s in res.items if s.service_id == sid), None)
+        assert item is not None, f"Service {sid} missing from results"
+        assert item.sli_current is not None, f"Service {sid} (under SLA {i}) must NOT be NO_DATA!"
+        assert item.sli_current == 100.0
+        assert item.sla_status == "COMPLIANT"
+        assert item.sla_name == f"Enterprise SLA {i}"
+
+    # Check service 25 (which matches both SLA 1 and SLA 25)
+    s25 = next((s for s in res.items if s.service_id == "srv_25"), None)
+    assert s25 is not None
+    assert s25.sli_current == 100.0
+    assert s25.sla_status == "COMPLIANT"
+    assert len(s25.slas) == 2
+    sla_ids = [s["sla_id"] for s in s25.slas]
+    assert "1" in sla_ids
+    assert "25" in sla_ids
+
+
+@pytest.mark.asyncio
+async def test_srv01_multi_sla_preservation_model():
+    """
+    Test that srv_25, which belongs to both SLA 1 and SLA 25:
+    - Has SLA 25 and SLA 1 preserved in slas list
+    - Zero data loss
+    """
+    adapter = LargeSlaFailureSimulationAdapter()
+    service = AvailabilityService(adapter=adapter)
+
+    res = await service.get_services(page=1, page_size=25)
+    srv25 = next((s for s in res.items if s.service_id == "srv_25"), None)
+    assert srv25 is not None
+    assert srv25.sli_current is not None
+    assert srv25.sla_status == "COMPLIANT"
+    assert len(srv25.slas) == 2
+    matched_ids = [s["sla_id"] for s in srv25.slas]
+    assert "1" in matched_ids
+    assert "25" in matched_ids
+
+
+@pytest.mark.parametrize("num_slas", [1, 3, 10, 11, 20, 25])
+@pytest.mark.asyncio
+async def test_srv01_arbitrary_sla_counts_all_receive_telemetry(num_slas):
+    """
+    Test arbitrary SLA counts (1, 3, 10, 11, 20, 25):
+    Proves that NO arbitrary SLA limit exists (no 10-SLA ceiling).
+    Every service under every SLA receives authoritative telemetry.
+    """
+    adapter = LargeSlaFailureSimulationAdapter()
+    # Trim to num_slas
+    adapter.slas = adapter.slas[:num_slas]
+    adapter.services = adapter.services[:num_slas]
+    service = AvailabilityService(adapter=adapter)
+
+    res = await service.get_services(page=1, page_size=50)
+    assert len(res.items) == num_slas
+
+    for idx, item in enumerate(res.items, start=1):
+        assert item.sli_current is not None, f"Service {item.service_id} under SLA {idx} must not be NO_DATA"
+        assert item.sla_status == "COMPLIANT"
+        assert len(item.slas) >= 1

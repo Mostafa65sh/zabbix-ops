@@ -290,8 +290,8 @@ class AvailabilityService:
 
         # Multi-SLA Resolution:
         # Collect SLI telemetry for all SLAs that apply to candidate services
-        sli_by_service: Dict[str, Dict[str, Any]] = {}
-        sla_by_service: Dict[str, Dict[str, Any]] = {}
+        # Support full multi-SLA membership without discarding secondary memberships
+        all_slas_by_service: Dict[str, List[Dict[str, Any]]] = {}
 
         target_slas = [s for s in raw_slas if s["slaid"] == sla_id] if sla_id else raw_slas
         for sla in target_slas:
@@ -308,9 +308,34 @@ class AvailabilityService:
                     for idx, s_id in enumerate(service_ids):
                         s_id_str = str(s_id)
                         if idx < len(latest_period_cells):
-                            if s_id_str not in sla_by_service:
-                                sla_by_service[s_id_str] = sla
-                                sli_by_service[s_id_str] = latest_period_cells[idx]
+                            cell = latest_period_cells[idx]
+                            raw_sli = cell.get("sli")
+                            if raw_sli is not None and float(raw_sli) >= 0.0:
+                                sli_val = round(float(raw_sli), 2)
+                                sli_fmt = f"{raw_sli:.2f}%"
+                            else:
+                                sli_val = None
+                                sli_fmt = "NO_DATA"
+                            eb_val = cell.get("error_budget")
+                            eb_fmt = format_error_budget(eb_val)
+                            slo_target = float(sla.get("slo", 99.0))
+                            sla_status = "COMPLIANT" if (sli_val is not None and sli_val >= slo_target) else ("NO_DATA" if sli_val is None else "BREACHED")
+
+                            sla_record = {
+                                "sla_id": str(s_slaid),
+                                "sla_name": sla.get("name", f"SLA-{s_slaid}"),
+                                "slo_target": slo_target,
+                                "sli_current": sli_val,
+                                "sli_formatted": sli_fmt,
+                                "sla_status": sla_status,
+                                "uptime_seconds": int(cell.get("uptime", 0)),
+                                "downtime_seconds": int(cell.get("downtime", 0)),
+                                "error_budget_seconds": eb_val,
+                                "error_budget_formatted": eb_fmt
+                            }
+                            if s_id_str not in all_slas_by_service:
+                                all_slas_by_service[s_id_str] = []
+                            all_slas_by_service[s_id_str].append(sla_record)
             except Exception as e:
                 logger.warning(f"Could not retrieve SLI for SLA '{s_slaid}': {e}")
 
@@ -322,57 +347,59 @@ class AvailabilityService:
             st_int = int(s.get("status") or 0)
             st_name = SEVERITY_NAMES.get(st_int, "UNKNOWN")
 
-            # Determine linked SLA:
-            # 1. Authoritative membership from Zabbix sla.getsli
-            matched_sla = sla_by_service.get(sid)
-            # 2. Tag-based fallback if SLI wasn't returned
-            if matched_sla is None:
+            # Determine linked SLAs from authoritative membership
+            linked_slas = all_slas_by_service.get(sid, [])
+
+            if not linked_slas:
+                # SLA not configured or telemetry not returned
+                # Fallback to tag match check if configured but unmeasured
                 srv_tags = [(t.get("tag"), t.get("value")) for t in s.get("tags", [])]
+                tag_matched_sla = None
                 for sla in raw_slas:
                     sla_tags = [(t.get("tag"), t.get("value")) for t in sla.get("service_tags", [])]
                     if any(st in srv_tags for st in sla_tags):
-                        matched_sla = sla
+                        tag_matched_sla = sla
                         break
 
-            sli_info = sli_by_service.get(sid)
-            slo_target = float(matched_sla["slo"]) if matched_sla else None
-            sla_name = matched_sla.get("name") if matched_sla else None
-            sla_id_val = matched_sla.get("slaid") if matched_sla else None
-
-            # Evidence-based SLI calculation (Golden Rule: Never fabricate!)
-            if matched_sla is None:
-                sli_current = None
-                sli_formatted = "NO_DATA"
-                sla_status = "NOT_CONFIGURED"
-                uptime_sec = 0
-                downtime_sec = 0
-                eb_sec = None
-                eb_formatted = "NO_DATA"
-            elif sli_info is not None:
-                raw_sli_val = sli_info.get("sli")
-                uptime_sec = int(sli_info.get("uptime", 0))
-                downtime_sec = int(sli_info.get("downtime", 0))
-                eb_sec = sli_info.get("error_budget")
-                eb_formatted = format_error_budget(eb_sec)
-
-                if raw_sli_val is None or float(raw_sli_val) == -1.0 or float(raw_sli_val) < 0.0:
-                    sli_current = None
-                    sli_formatted = "NO_DATA"
+                if tag_matched_sla:
+                    sla_id_val = tag_matched_sla.get("slaid")
+                    sla_name = tag_matched_sla.get("name")
+                    slo_target = float(tag_matched_sla.get("slo", 99.0))
                     sla_status = "NO_DATA"
                 else:
-                    raw_sli = float(raw_sli_val)
-                    sli_current = round(raw_sli, 2)
-                    sli_formatted = f"{raw_sli:.2f}%"
-                    sla_status = "COMPLIANT" if (slo_target is not None and raw_sli >= slo_target) else "BREACHED"
-            else:
-                # SLA is configured, but SLI telemetry is not available for this service
+                    sla_id_val = None
+                    sla_name = None
+                    slo_target = None
+                    sla_status = "NOT_CONFIGURED"
+
                 sli_current = None
                 sli_formatted = "NO_DATA"
-                sla_status = "NO_DATA"
                 uptime_sec = 0
                 downtime_sec = 0
                 eb_sec = None
                 eb_formatted = "NO_DATA"
+            else:
+                # If filtered by sla_id, use that SLA; otherwise sort linked SLAs to select primary representative
+                if sla_id:
+                    matched_record = next((r for r in linked_slas if r["sla_id"] == sla_id), linked_slas[0])
+                else:
+                    # Select representative SLA (breached first if any, else lowest SLI, else first)
+                    breached = [r for r in linked_slas if r["sla_status"] == "BREACHED"]
+                    if breached:
+                        matched_record = min(breached, key=lambda r: (r["sli_current"] if r["sli_current"] is not None else 999.0))
+                    else:
+                        matched_record = linked_slas[0]
+
+                sla_id_val = matched_record["sla_id"]
+                sla_name = matched_record["sla_name"]
+                slo_target = matched_record["slo_target"]
+                sli_current = matched_record["sli_current"]
+                sli_formatted = matched_record["sli_formatted"]
+                sla_status = matched_record["sla_status"]
+                uptime_sec = matched_record["uptime_seconds"]
+                downtime_sec = matched_record["downtime_seconds"]
+                eb_sec = matched_record["error_budget_seconds"]
+                eb_formatted = matched_record["error_budget_formatted"]
 
             # Problem events
             prob_events = []
@@ -406,7 +433,8 @@ class AvailabilityService:
                     error_budget_formatted=eb_formatted,
                     problem_count=len(prob_events),
                     problem_events=prob_events,
-                    tags=s.get("tags", [])
+                    tags=s.get("tags", []),
+                    slas=linked_slas
                 )
             )
 

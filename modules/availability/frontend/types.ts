@@ -35,6 +35,19 @@ export interface AvailabilityOverview {
   generated_at: string;
 }
 
+export interface ServiceSlaMembership {
+  sla_id: string;
+  sla_name: string;
+  slo_target: number;
+  sli_current: number | null;
+  sli_formatted: string;
+  sla_status: 'COMPLIANT' | 'BREACHED' | 'NO_DATA';
+  uptime_seconds: number;
+  downtime_seconds: number;
+  error_budget_seconds: number | null;
+  error_budget_formatted: string;
+}
+
 export interface ServiceAvailabilityItem {
   service_id: string;
   name: string;
@@ -53,6 +66,7 @@ export interface ServiceAvailabilityItem {
   problem_count: number;
   problem_events: LinkedProblem[];
   tags: Array<{ tag: string; value: string }>;
+  slas?: ServiceSlaMembership[];
 }
 
 export interface ServiceAvailabilityList {

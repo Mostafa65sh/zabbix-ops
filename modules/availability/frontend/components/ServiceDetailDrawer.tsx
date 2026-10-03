@@ -62,6 +62,43 @@ export const ServiceDetailDrawer: React.FC<ServiceDetailDrawerProps> = ({ servic
             </div>
           </div>
 
+          {/* Multi-SLA Memberships (Preserves all authoritative SLAs) */}
+          {service.slas && service.slas.length > 0 && (
+            <div className="drawer-section">
+              <h4 className="drawer-section-title">
+                Configured SLA Memberships ({service.slas.length})
+              </h4>
+              <div className="table-responsive">
+                <table className="platform-table text-xs">
+                  <thead>
+                    <tr>
+                      <th>SLA Name</th>
+                      <th>Target SLO</th>
+                      <th>SLI</th>
+                      <th>Status</th>
+                      <th>Error Budget</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {service.slas.map((s) => (
+                      <tr key={s.sla_id}>
+                        <td className="font-semibold">{s.sla_name}</td>
+                        <td>{s.slo_target.toFixed(2)}%</td>
+                        <td className="font-mono font-bold text-ok">{s.sli_formatted}</td>
+                        <td>
+                          <span className={`badge ${s.sla_status === 'COMPLIANT' ? 'badge-compliant' : 'badge-breached'}`}>
+                            {s.sla_status}
+                          </span>
+                        </td>
+                        <td className="font-mono">{s.error_budget_formatted}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Linked Root-Cause Problems */}
           <div className="drawer-section">
             <h4 className="drawer-section-title">

@@ -57,6 +57,7 @@ class ServiceAvailabilityItemDTO(BaseModel):
     problem_count: int
     problem_events: List[LinkedProblemDTO] = Field(default_factory=list)
     tags: List[Dict[str, str]] = Field(default_factory=list)
+    slas: List[Dict[str, Any]] = Field(default_factory=list)  # Preserves all authoritative SLA memberships with telemetry
 
 
 class ServiceAvailabilityListDTO(BaseModel):

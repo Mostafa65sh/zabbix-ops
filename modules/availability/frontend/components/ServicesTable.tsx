@@ -169,7 +169,17 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
                   <td>{getStatusBadge(service.status)}</td>
                   <td>
                     {service.sla_name ? (
-                      <span className="text-main">{service.sla_name}</span>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-main">{service.sla_name}</span>
+                        {service.slas && service.slas.length > 1 && (
+                          <span
+                            className="badge badge-info text-xs inline-block"
+                            title={service.slas.map((s) => `${s.sla_name} (${s.sli_formatted})`).join(', ')}
+                          >
+                            +{service.slas.length - 1} more SLA{service.slas.length > 2 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
                     ) : (
                       <span className="text-muted italic">Unassigned</span>
                     )}
