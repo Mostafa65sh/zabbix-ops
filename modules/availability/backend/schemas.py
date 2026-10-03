@@ -22,10 +22,13 @@ class AvailabilityOverviewDTO(BaseModel):
     average_sli: Optional[float] = None    # None if NO_DATA
     average_sli_formatted: str             # "99.85%" | "NO_DATA"
     sla_compliance_rate: Optional[float] = None   # Percentage of compliant SLAs
+    service_compliance_rate: Optional[float] = None # Percentage of compliant services
     total_services: int
     services_ok: int
     services_problem: int
     services_no_data: int
+    services_compliant: int = 0             # Number of compliant services
+    services_breached: int = 0              # Number of breached services
     total_slas: int
     slas_compliant: int
     slas_breached: int

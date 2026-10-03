@@ -79,23 +79,23 @@ export const AvailabilitySummaryCards: React.FC<AvailabilitySummaryCardsProps> =
         </div>
       </div>
 
-      {/* 2. SLA Compliance Rate */}
+      {/* 2. Service SLA Compliance Rate */}
       <div className="kpi-card">
         <div className="kpi-header">
-          <span className="kpi-title">SLA Compliance Rate</span>
+          <span className="kpi-title">Service Compliance Rate</span>
           <span className="badge badge-info">
-            {overview.total_slas} Active SLAs
+            {overview.total_slas} Configured SLAs
           </span>
         </div>
         <div className="kpi-value-row">
           <span className="kpi-main-value">
-            {overview.sla_compliance_rate !== null ? `${overview.sla_compliance_rate.toFixed(1)}%` : 'NO_DATA'}
+            {overview.service_compliance_rate !== null ? `${overview.service_compliance_rate.toFixed(1)}%` : 'NO_DATA'}
           </span>
-          <span className="kpi-sub-text">Compliance Target Met</span>
+          <span className="kpi-sub-text">Services Meeting Target</span>
         </div>
         <div className="kpi-footer">
-          <span className={overview.slas_breached > 0 ? 'text-disaster' : 'text-ok'}>
-            {overview.slas_compliant} compliant, {overview.slas_breached} breached
+          <span className={(overview.services_breached || 0) > 0 ? 'text-disaster' : 'text-ok'}>
+            {overview.services_compliant || 0} compliant, {overview.services_breached || 0} breached
           </span>
         </div>
       </div>

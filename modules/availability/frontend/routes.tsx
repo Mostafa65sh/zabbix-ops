@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import type {
   AvailabilityOverview,
   ServiceAvailabilityItem,
@@ -27,9 +27,12 @@ export const AvailabilityPage: React.FC = () => {
   const [isOverviewLoading, setIsOverviewLoading] = useState<boolean>(true);
 
   // Services state
+  // Services state
   const [services, setServices] = useState<ServiceAvailabilityItem[]>([]);
   const [totalServicesCount, setTotalServicesCount] = useState<number>(0);
   const [totalServicesPages, setTotalServicesPages] = useState<number>(1);
+  const [isServicesTruncated, setIsServicesTruncated] = useState<boolean>(false);
+  const [candidateLimit, setCandidateLimit] = useState<number>(500);
   const [serviceFilters, setServiceFilters] = useState<ServiceFilters>({
     page: 1,
     page_size: 25,
@@ -52,55 +55,84 @@ export const AvailabilityPage: React.FC = () => {
   // Global Error state
   const [error, setError] = useState<string | null>(null);
 
-  const loadOverview = useCallback(() => {
-    setIsOverviewLoading(true);
-    fetchAvailabilityOverview({ time_range: timeRange })
-      .then((data) => setOverview(data))
-      .catch((err) => setError(err.message || 'Failed to load availability overview'))
-      .finally(() => setIsOverviewLoading(false));
-  }, [timeRange]);
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
-  const loadServices = useCallback(() => {
+  // FNT-01: Cancellation-safe data fetching with AbortController
+  useEffect(() => {
+    const controller = new AbortController();
+    setIsOverviewLoading(true);
+
+    fetchAvailabilityOverview({ time_range: timeRange, signal: controller.signal })
+      .then((data) => setOverview(data))
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          setError(err.message || 'Failed to load availability overview');
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setIsOverviewLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [timeRange, refreshTrigger]);
+
+  useEffect(() => {
+    const controller = new AbortController();
     setIsServicesLoading(true);
-    fetchServicesList(serviceFilters)
+
+    fetchServicesList(serviceFilters, controller.signal)
       .then((data) => {
         setServices(data.items);
         setTotalServicesCount(data.total_count);
         setTotalServicesPages(data.total_pages);
+        setIsServicesTruncated(Boolean(data.summary?.is_truncated));
+        if (data.summary?.candidate_limit) {
+          setCandidateLimit(data.summary.candidate_limit);
+        }
       })
-      .catch((err) => setError(err.message || 'Failed to load business services'))
-      .finally(() => setIsServicesLoading(false));
-  }, [serviceFilters]);
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          setError(err.message || 'Failed to load business services');
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setIsServicesLoading(false);
+        }
+      });
 
-  const loadSlas = useCallback(() => {
+    return () => controller.abort();
+  }, [serviceFilters, refreshTrigger]);
+
+  useEffect(() => {
+    const controller = new AbortController();
     setIsSlasLoading(true);
-    fetchSLAsList({ page: slaPage, page_size: slaPageSize })
+
+    fetchSLAsList({ page: slaPage, page_size: slaPageSize }, controller.signal)
       .then((data) => {
         setSlas(data.items);
         setTotalSlasCount(data.total_count);
         setTotalSlasPages(data.total_pages);
       })
-      .catch((err) => setError(err.message || 'Failed to load SLAs'))
-      .finally(() => setIsSlasLoading(false));
-  }, [slaPage, slaPageSize]);
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          setError(err.message || 'Failed to load SLAs');
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setIsSlasLoading(false);
+        }
+      });
 
-  useEffect(() => {
-    loadOverview();
-  }, [loadOverview]);
-
-  useEffect(() => {
-    loadServices();
-  }, [loadServices]);
-
-  useEffect(() => {
-    loadSlas();
-  }, [loadSlas]);
+    return () => controller.abort();
+  }, [slaPage, slaPageSize, refreshTrigger]);
 
   const handleRefreshAll = () => {
     setError(null);
-    loadOverview();
-    loadServices();
-    loadSlas();
+    setRefreshTrigger((prev) => prev + 1);
   };
 
   const handleServiceFilterChange = (newFilters: Partial<ServiceFilters>) => {
@@ -172,6 +204,8 @@ export const AvailabilityPage: React.FC = () => {
             onFilterChange={handleServiceFilterChange}
             onSelectService={setSelectedService}
             isLoading={isServicesLoading}
+            isTruncated={isServicesTruncated}
+            candidateLimit={candidateLimit}
           />
         )}
 

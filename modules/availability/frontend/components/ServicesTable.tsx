@@ -10,6 +10,8 @@ interface ServicesTableProps {
   onFilterChange: (newFilters: Partial<ServiceFilters>) => void;
   onSelectService: (service: ServiceAvailabilityItem) => void;
   isLoading: boolean;
+  isTruncated?: boolean;
+  candidateLimit?: number;
 }
 
 export const ServicesTable: React.FC<ServicesTableProps> = ({
@@ -20,6 +22,8 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
   onFilterChange,
   onSelectService,
   isLoading,
+  isTruncated,
+  candidateLimit,
 }) => {
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -54,6 +58,15 @@ export const ServicesTable: React.FC<ServicesTableProps> = ({
 
   return (
     <div className="table-container-card">
+      {/* PAG-01 Candidate Truncation Warning */}
+      {isTruncated && (
+        <div className="alert-banner alert-warning" style={{ margin: '1rem', marginBottom: '0.5rem' }}>
+          <div className="alert-message">
+            <strong>Candidate Ceiling Notice:</strong> Showing the first {candidateLimit || 500} candidate services bounded by system safety limits. Use search filters to narrow results.
+          </div>
+        </div>
+      )}
+
       {/* Filter and Search Bar */}
       <div className="table-filter-bar">
         <div className="search-box">

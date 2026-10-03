@@ -195,14 +195,15 @@ async def test_valid_compliant_and_breached_semantics():
     assert core.sli_formatted == "99.98%"
     assert "+" in core.error_budget_formatted
 
-    # Customer Portal is linked to sla_02. In untargeted query, it returns NO_DATA (never fabricated fallback numbers!)
+    # Customer Portal is linked to sla_02. With multi-SLA resolution, it authoritatively retrieves SLA 02 telemetry!
     portal_unscoped = next((s for s in res.items if s.service_id == "service_02"), None)
     assert portal_unscoped is not None
-    assert portal_unscoped.sla_status == "NO_DATA"
-    assert portal_unscoped.sli_current is None
-    assert portal_unscoped.sli_formatted == "NO_DATA"
+    assert portal_unscoped.sla_status == "BREACHED"
+    assert portal_unscoped.sli_current == 98.85
+    assert portal_unscoped.sli_formatted == "98.85%"
+    assert "-" in portal_unscoped.error_budget_formatted
 
-    # When explicitly targeted with sla_id="sla_02", Customer Portal's real Zabbix SLI is retrieved
+    # When explicitly targeted with sla_id="sla_02", Customer Portal's real Zabbix SLI is also retrieved
     res_targeted = await service.get_services(page=1, page_size=100, sla_id="sla_02")
     portal = next((s for s in res_targeted.items if s.service_id == "service_02"), None)
     assert portal is not None
@@ -280,7 +281,9 @@ async def test_call_budget_overview():
     service = AvailabilityService(adapter=spy)
     await service.get_overview()
 
-    assert len(spy.call_history) <= 3
+    # Proven formula: 2 calls (sla.get + service.get) + min(K, 10) targeted sla.getsli
+    # With 2 SLAs in mock data, expected calls = 2 + 2 = 4
+    assert len(spy.call_history) <= 2 + 10
     called_methods = [c["method"] for c in spy.call_history]
     assert "get_slas" in called_methods
     assert "get_services" in called_methods
@@ -328,10 +331,10 @@ async def test_n_plus_one_prevention():
     # Requesting services list across all SLAs
     await service.get_services(page=1, page_size=50)
 
-    # Total calls must remain <= 3, never 1 per service or 1 per SLA!
-    assert len(spy.call_history) <= 3
+    # Bounded call budget: 2 + min(K, 10) SLA calls; never 1 per service (O(N))!
+    assert len(spy.call_history) <= 2 + 10
     sli_calls = sum(1 for c in spy.call_history if c["method"] == "get_sla_sli")
-    assert sli_calls <= 1
+    assert sli_calls <= 10
 
 
 # 19. RealZabbixAdapter parameter validation: NO offset
@@ -615,22 +618,22 @@ async def test_call_budget_strictly_enforced_on_all_endpoints():
     spy = AdapterCallSpy(MockZabbixAdapter())
     service = AvailabilityService(adapter=spy)
 
-    # 1. Overview
+    # 1. Overview: 2 + min(K, 10)
     spy.call_history.clear()
     await service.get_overview()
-    assert len(spy.call_history) <= 3
+    assert len(spy.call_history) <= 2 + 10
 
-    # 2. Services List
+    # 2. Services List: 2 + min(K, 10)
     spy.call_history.clear()
     await service.get_services(page=1, page_size=50)
-    assert len(spy.call_history) <= 3
+    assert len(spy.call_history) <= 2 + 10
 
-    # 3. SLAs List
+    # 3. SLAs List: <= 3 calls
     spy.call_history.clear()
     await service.get_slas(page=1, page_size=25)
     assert len(spy.call_history) <= 3
 
-    # 4. Trend
+    # 4. Trend: exactly 2 calls
     spy.call_history.clear()
     await service.get_trend(sla_id="sla_01", periods=12)
     assert len(spy.call_history) <= 3

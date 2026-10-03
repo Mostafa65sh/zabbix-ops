@@ -18,10 +18,13 @@ export interface AvailabilityOverview {
   average_sli: number | null;
   average_sli_formatted: string;
   sla_compliance_rate: number | null;
+  service_compliance_rate: number | null;
   total_services: number;
   services_ok: number;
   services_problem: number;
   services_no_data: number;
+  services_compliant: number;
+  services_breached: number;
   total_slas: number;
   slas_compliant: number;
   slas_breached: number;
@@ -63,6 +66,9 @@ export interface ServiceAvailabilityList {
     compliant_count: number;
     breached_count: number;
     unconfigured_count: number;
+    bounded_ceiling?: number;
+    candidate_limit?: number;
+    is_truncated?: boolean;
   };
 }
 

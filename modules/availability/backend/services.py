@@ -151,45 +151,52 @@ class AvailabilityService:
             overall_status = "NO_DATA"
 
         total_slas = len(raw_slas)
-        slas_compliant = 0
-        slas_breached = 0
+        services_compliant = 0
+        services_breached = 0
+        services_no_data = 0
         total_downtime = 0
         total_excluded_downtime = 0
         valid_slis: List[float] = []
 
-        # Call 3 (targeted): Query authoritative SLI calculations for requested operational period
-        target_slaid = sla_id or (raw_slas[0]["slaid"] if raw_slas else None)
-        if target_slaid:
-            slo_target = float(raw_slas[0].get("slo", 99.0)) if raw_slas else 99.0
+        target_slas = [s for s in raw_slas if s["slaid"] == sla_id] if sla_id else raw_slas
+        for sla in target_slas:
+            s_slaid = sla["slaid"]
+            slo_target = float(sla.get("slo", 99.0))
             try:
                 sli_data = await self.adapter.get_sla_sli(
-                    slaid=target_slaid,
+                    slaid=s_slaid,
                     period_from=p_from,
                     period_to=p_till
                 )
                 sli_matrix = sli_data.get("sli", [])
-                if sli_matrix and len(sli_matrix) > 0:
-                    period_cells = sli_matrix[0]
-                    for cell in period_cells:
-                        val_raw = cell.get("sli")
-                        if val_raw is not None and float(val_raw) >= 0.0:
-                            val_float = round(float(val_raw), 2)
-                            valid_slis.append(val_float)
-                            total_downtime += int(cell.get("downtime", 0))
-                            if val_float >= slo_target:
-                                slas_compliant += 1
+                service_ids = sli_data.get("serviceids", [])
+                if sli_matrix and service_ids:
+                    # Iterate through all service columns and aggregate across all period rows
+                    for s_idx, sid in enumerate(service_ids):
+                        s_up = sum(int(row[s_idx].get("uptime", 0)) for row in sli_matrix if s_idx < len(row))
+                        s_down = sum(int(row[s_idx].get("downtime", 0)) for row in sli_matrix if s_idx < len(row))
+                        total_downtime += s_down
+                        if (s_up + s_down) > 0:
+                            s_sli = round((s_up / (s_up + s_down)) * 100.0, 2)
+                            valid_slis.append(s_sli)
+                            if s_sli >= slo_target:
+                                services_compliant += 1
                             else:
-                                slas_breached += 1
+                                services_breached += 1
+                        else:
+                            services_no_data += 1
 
-                        for ed in cell.get("excluded_downtimes", []):
-                            ed_from = int(ed.get("period_from", 0))
-                            ed_to = int(ed.get("period_to", 0))
-                            overlap_start = max(ed_from, p_from)
-                            overlap_end = min(ed_to, p_till)
-                            if overlap_end > overlap_start:
-                                total_excluded_downtime += (overlap_end - overlap_start)
+                    for row in sli_matrix:
+                        for cell in row:
+                            for ed in cell.get("excluded_downtimes", []):
+                                ed_from = int(ed.get("period_from", 0))
+                                ed_to = int(ed.get("period_to", 0))
+                                overlap_start = max(ed_from, p_from)
+                                overlap_end = min(ed_to, p_till)
+                                if overlap_end > overlap_start:
+                                    total_excluded_downtime += (overlap_end - overlap_start)
             except Exception as e:
-                logger.warning(f"Could not retrieve SLI for SLA '{target_slaid}': {e}")
+                logger.warning(f"Could not retrieve SLI for SLA '{s_slaid}': {e}")
 
         # Account for static excluded downtimes in SLA definitions within the window
         if total_excluded_downtime == 0:
@@ -203,8 +210,8 @@ class AvailabilityService:
                         total_excluded_downtime += (overlap_end - overlap_start)
 
         avg_sli = round(sum(valid_slis) / len(valid_slis), 2) if valid_slis else None
-        compliance_eval_count = slas_compliant + slas_breached
-        compliance_rate = round((slas_compliant / compliance_eval_count) * 100.0, 1) if compliance_eval_count > 0 else None
+        compliance_eval_count = services_compliant + services_breached
+        compliance_rate = round((services_compliant / compliance_eval_count) * 100.0, 1) if compliance_eval_count > 0 else None
 
         now_str = datetime.fromtimestamp(now, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
@@ -213,13 +220,16 @@ class AvailabilityService:
             average_sli=avg_sli,
             average_sli_formatted=f"{avg_sli:.2f}%" if avg_sli is not None else "NO_DATA",
             sla_compliance_rate=compliance_rate,
+            service_compliance_rate=compliance_rate,
             total_services=total_services,
             services_ok=services_ok,
             services_problem=services_problem,
             services_no_data=services_no_data,
+            services_compliant=services_compliant,
+            services_breached=services_breached,
             total_slas=total_slas,
-            slas_compliant=slas_compliant,
-            slas_breached=slas_breached,
+            slas_compliant=services_compliant,
+            slas_breached=services_breached,
             total_downtime_seconds=total_downtime,
             total_excluded_downtime_seconds=total_excluded_downtime,
             measured_period=period_label,
@@ -234,7 +244,7 @@ class AvailabilityService:
                 "rules": [
                     "No Data != 100% Availability",
                     "Excluded downtimes removed from reporting windows",
-                    "Targeted call budget <= 3",
+                    "Multi-period time-weighted aggregation",
                     "Zero data fabrication"
                 ]
             },
@@ -278,15 +288,17 @@ class AvailabilityService:
             limit=100
         )
 
-        # Match services to primary or explicitly queried SLA
-        primary_slaid = sla_id or (raw_slas[0]["slaid"] if raw_slas else None)
-
-        # Call 3 (targeted): Get SLI for primary SLA if available within call budget
+        # Multi-SLA Resolution:
+        # Collect SLI telemetry for all SLAs that apply to candidate services
         sli_by_service: Dict[str, Dict[str, Any]] = {}
-        if primary_slaid:
+        sla_by_service: Dict[str, Dict[str, Any]] = {}
+
+        target_slas = [s for s in raw_slas if s["slaid"] == sla_id] if sla_id else raw_slas
+        for sla in target_slas:
+            s_slaid = sla["slaid"]
             try:
                 sli_res = await self.adapter.get_sla_sli(
-                    slaid=primary_slaid,
+                    slaid=s_slaid,
                     periods=1
                 )
                 service_ids = sli_res.get("serviceids", [])
@@ -294,10 +306,13 @@ class AvailabilityService:
                 if sli_matrix and len(sli_matrix) > 0:
                     latest_period_cells = sli_matrix[0]
                     for idx, s_id in enumerate(service_ids):
+                        s_id_str = str(s_id)
                         if idx < len(latest_period_cells):
-                            sli_by_service[str(s_id)] = latest_period_cells[idx]
+                            if s_id_str not in sla_by_service:
+                                sla_by_service[s_id_str] = sla
+                                sli_by_service[s_id_str] = latest_period_cells[idx]
             except Exception as e:
-                logger.warning(f"Could not retrieve SLI for SLA '{primary_slaid}': {e}")
+                logger.warning(f"Could not retrieve SLI for SLA '{s_slaid}': {e}")
 
         # Map each service to DTO
         all_items: List[ServiceAvailabilityItemDTO] = []
@@ -307,14 +322,17 @@ class AvailabilityService:
             st_int = int(s.get("status") or 0)
             st_name = SEVERITY_NAMES.get(st_int, "UNKNOWN")
 
-            # Determine linked SLA
-            matched_sla = None
-            srv_tags = [(t.get("tag"), t.get("value")) for t in s.get("tags", [])]
-            for sla in raw_slas:
-                sla_tags = [(t.get("tag"), t.get("value")) for t in sla.get("service_tags", [])]
-                if any(st in srv_tags for st in sla_tags):
-                    matched_sla = sla
-                    break
+            # Determine linked SLA:
+            # 1. Authoritative membership from Zabbix sla.getsli
+            matched_sla = sla_by_service.get(sid)
+            # 2. Tag-based fallback if SLI wasn't returned
+            if matched_sla is None:
+                srv_tags = [(t.get("tag"), t.get("value")) for t in s.get("tags", [])]
+                for sla in raw_slas:
+                    sla_tags = [(t.get("tag"), t.get("value")) for t in sla.get("service_tags", [])]
+                    if any(st in srv_tags for st in sla_tags):
+                        matched_sla = sla
+                        break
 
             sli_info = sli_by_service.get(sid)
             slo_target = float(matched_sla["slo"]) if matched_sla else None
@@ -347,7 +365,7 @@ class AvailabilityService:
                     sli_formatted = f"{raw_sli:.2f}%"
                     sla_status = "COMPLIANT" if (slo_target is not None and raw_sli >= slo_target) else "BREACHED"
             else:
-                # SLA is configured, but SLI telemetry is not available for this service within the call budget
+                # SLA is configured, but SLI telemetry is not available for this service
                 sli_current = None
                 sli_formatted = "NO_DATA"
                 sla_status = "NO_DATA"
@@ -415,12 +433,15 @@ class AvailabilityService:
         end_idx = start_idx + page_size
         paged_items = all_items[start_idx:end_idx]
 
+        is_truncated = (len(raw_services) >= MAX_SERVICE_CANDIDATES)
         summary = {
             "total_services": total_count,
             "compliant_count": sum(1 for x in all_items if x.sla_status == "COMPLIANT"),
             "breached_count": sum(1 for x in all_items if x.sla_status == "BREACHED"),
             "unconfigured_count": sum(1 for x in all_items if x.sla_status == "NOT_CONFIGURED"),
-            "bounded_ceiling": MAX_SERVICE_CANDIDATES
+            "bounded_ceiling": MAX_SERVICE_CANDIDATES,
+            "candidate_limit": MAX_SERVICE_CANDIDATES,
+            "is_truncated": is_truncated
         }
 
         return ServiceAvailabilityListDTO(
@@ -603,12 +624,15 @@ class AvailabilityService:
 
         rep_periods = sli_data.get("periods", [])
         sli_matrix = sli_data.get("sli", [])
-        service_ids = sli_data.get("serviceids", [])
+        service_ids = [str(sid) for sid in sli_data.get("serviceids", [])]
 
-        # Find service index
-        target_idx = 0
-        if service_id and service_id in service_ids:
-            target_idx = service_ids.index(service_id)
+        # Invariant TRN-01: When service_id is provided, it must belong to the SLA
+        if service_id is not None:
+            if str(service_id) not in service_ids:
+                raise ValueError(f"Service '{service_id}' does not belong to SLA '{sla_id}'.")
+            target_idx = service_ids.index(str(service_id))
+        else:
+            target_idx = None
 
         slo = float(target_sla.get("slo", 99.0))
         period_str = PERIOD_NAMES.get(int(target_sla.get("period", 2)), "monthly")
@@ -619,17 +643,37 @@ class AvailabilityService:
             p_to = int(p.get("period_to", 0))
             dt_label = datetime.fromtimestamp(p_from, tz=timezone.utc).strftime("%b %Y")
 
-            if p_idx < len(sli_matrix) and target_idx < len(sli_matrix[p_idx]):
-                cell = sli_matrix[p_idx][target_idx]
-                val_sli = float(cell.get("sli", -1.0))
-                up_sec = int(cell.get("uptime", 0))
-                down_sec = int(cell.get("downtime", 0))
-                eb_sec = cell.get("error_budget")
+            if p_idx < len(sli_matrix):
+                row = sli_matrix[p_idx]
+                if target_idx is not None and target_idx < len(row):
+                    cell = row[target_idx]
+                    val_sli = float(cell.get("sli", -1.0))
+                    up_sec = int(cell.get("uptime", 0))
+                    down_sec = int(cell.get("downtime", 0))
+                    eb_sec = cell.get("error_budget")
 
-                # Excluded downtimes
-                ex_dur = 0
-                for ed in cell.get("excluded_downtimes", []):
-                    ex_dur += max(0, int(ed.get("period_to", 0)) - int(ed.get("period_from", 0)))
+                    # Excluded downtimes
+                    ex_dur = 0
+                    for ed in cell.get("excluded_downtimes", []):
+                        ex_dur += max(0, int(ed.get("period_to", 0)) - int(ed.get("period_from", 0)))
+                elif target_idx is None and len(row) > 0:
+                    # Aggregate across all services in this SLA for period p_idx
+                    up_sec = sum(int(c.get("uptime", 0)) for c in row)
+                    down_sec = sum(int(c.get("downtime", 0)) for c in row)
+                    valid_row_slis = [float(c["sli"]) for c in row if c.get("sli") is not None and float(c.get("sli", -1.0)) >= 0.0]
+                    val_sli = round(sum(valid_row_slis) / len(valid_row_slis), 2) if valid_row_slis else -1.0
+                    eb_list = [c.get("error_budget") for c in row if c.get("error_budget") is not None]
+                    eb_sec = min(eb_list) if eb_list else None
+                    ex_dur = 0
+                    for c in row:
+                        for ed in c.get("excluded_downtimes", []):
+                            ex_dur += max(0, int(ed.get("period_to", 0)) - int(ed.get("period_from", 0)))
+                else:
+                    val_sli = -1.0
+                    up_sec = 0
+                    down_sec = 0
+                    eb_sec = None
+                    ex_dur = 0
 
                 if val_sli == -1.0:
                     sli_percent = None
