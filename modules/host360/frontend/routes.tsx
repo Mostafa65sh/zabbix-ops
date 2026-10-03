@@ -31,6 +31,7 @@ export const Host360Page: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   const [error, setError] = useState<string | null>(null);
+  const [truncationNotice, setTruncationNotice] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>('');
 
   // AbortController refs to protect against stale request races (FNT-01 pattern)
@@ -52,6 +53,7 @@ export const Host360Page: React.FC = () => {
     try {
       const res = await fetchHost360List({ search: searchTerm, page: 1, page_size: 50 }, controller.signal);
       setHosts(res.items);
+      setTruncationNotice(res.is_truncated ? res.truncation_reason || 'Host list capped at 1000 nodes.' : null);
       // Auto-select first host if none selected or selected host disappeared
       if (res.items.length > 0) {
         if (!selectedHostId || !res.items.some((h) => h.host_id === selectedHostId)) {
@@ -169,6 +171,23 @@ export const Host360Page: React.FC = () => {
           }}
         >
           {error}
+        </div>
+      )}
+
+      {truncationNotice && (
+        <div
+          className="host360-truncation-banner"
+          style={{
+            padding: '10px 16px',
+            background: 'rgba(245, 158, 11, 0.15)',
+            border: '1px solid #f59e0b',
+            borderRadius: '6px',
+            color: '#f59e0b',
+            marginBottom: '16px',
+            fontSize: '12px'
+          }}
+        >
+          ⚠️ {truncationNotice}
         </div>
       )}
 

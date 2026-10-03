@@ -67,6 +67,8 @@ export interface Host360ListResponse {
   page: number;
   page_size: number;
   total_pages: number;
+  is_truncated?: boolean;
+  truncation_reason?: string | null;
   generated_at: string;
 }
 

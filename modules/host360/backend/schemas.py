@@ -79,6 +79,8 @@ class Host360ListResponseDTO(BaseModel):
     page: int
     page_size: int
     total_pages: int
+    is_truncated: bool = False
+    truncation_reason: Optional[str] = None
     generated_at: str
 
 

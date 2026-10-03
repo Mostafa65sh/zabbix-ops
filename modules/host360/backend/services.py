@@ -201,12 +201,22 @@ class Host360Service:
         end_idx = start_idx + page_size_safe
         paged_items = filtered[start_idx:end_idx]
 
+        is_truncated = len(raw_servers) >= 1000
+        truncation_reason = (
+            "Target environment exceeds 1000 hosts. Candidate inventory capped at 1000 nodes for memory safety. "
+            "Use targeted search or host group filters for specific host discovery."
+            if is_truncated
+            else None
+        )
+
         return Host360ListResponseDTO(
             items=paged_items,
             total_count=total_count,
             page=page_safe,
             page_size=page_size_safe,
             total_pages=total_pages,
+            is_truncated=is_truncated,
+            truncation_reason=truncation_reason,
             generated_at=now_iso
         )
 
