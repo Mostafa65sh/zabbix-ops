@@ -7,14 +7,14 @@ interface AvailabilityTrendChartProps {
 }
 
 export const AvailabilityTrendChart: React.FC<AvailabilityTrendChartProps> = ({ slas }) => {
-  const [selectedSlaId, setSelectedSlaId] = useState<string>(slas[0]?.sla_id || 'sla_01');
+  const [selectedSlaId, setSelectedSlaId] = useState<string>(slas[0]?.sla_id || '');
   const [periods, setPeriods] = useState<number>(12);
   const [trendData, setTrendData] = useState<AvailabilityTrendResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!selectedSlaId && slas.length > 0) {
+    if ((!selectedSlaId || !slas.some((s) => s.sla_id === selectedSlaId)) && slas.length > 0) {
       setSelectedSlaId(slas[0].sla_id);
     }
   }, [slas, selectedSlaId]);

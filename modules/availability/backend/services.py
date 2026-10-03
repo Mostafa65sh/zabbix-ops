@@ -117,7 +117,9 @@ class AvailabilityService:
     ) -> AvailabilityOverviewDTO:
         """
         Executive Availability Overview.
-        Call budget: Exactly 2 calls (sla.get, service.get).
+        Call budget: Max 3 calls (sla.get, service.get, targeted sla.getsli).
+        Zero data fabrication: All availability and downtime metrics are derived
+        directly from authoritative Zabbix API data for the requested operational window.
         """
         now = int(time.time())
         p_from, p_till, period_label = self._resolve_time_range(time_range, time_from, time_till)
@@ -138,22 +140,7 @@ class AvailabilityService:
         total_services = len(raw_services)
         services_ok = sum(1 for s in raw_services if s.get("status") == 0)
         services_problem = sum(1 for s in raw_services if (s.get("status") or 0) > 0)
-        services_no_data = 0  # Services with no metrics/monitoring
-
-        # Evaluate SLA compliance
-        total_slas = len(raw_slas)
-        slas_compliant = 0
-        slas_breached = 0
-        total_downtime = 0
-        total_excluded_downtime = 0
-
-        # Calculate excluded downtime across SLAs
-        for sla in raw_slas:
-            for ed in sla.get("excluded_downtimes", []):
-                ed_from = ed.get("period_from", 0)
-                ed_to = ed.get("period_to", 0)
-                if ed_to > ed_from:
-                    total_excluded_downtime += (ed_to - ed_from)
+        services_no_data = 0
 
         # Health state derivation
         if services_problem > 0:
@@ -163,37 +150,61 @@ class AvailabilityService:
         else:
             overall_status = "NO_DATA"
 
-        # Calculate average SLI & compliance rate deterministically from available SLAs
+        total_slas = len(raw_slas)
+        slas_compliant = 0
+        slas_breached = 0
+        total_downtime = 0
+        total_excluded_downtime = 0
         valid_slis: List[float] = []
-        for sla in raw_slas:
-            slo = float(sla.get("slo", 99.9))
-            # Check service health linked to this SLA
-            sla_tags = [(t.get("tag"), t.get("value")) for t in sla.get("service_tags", [])]
-            linked_srvs = [
-                s for s in raw_services
-                if any((t.get("tag"), t.get("value")) in sla_tags for t in s.get("tags", []))
-            ]
-            has_outage = any((s.get("status") or 0) >= 4 for s in linked_srvs)
-            has_warning = any((s.get("status") or 0) in (1, 2, 3) for s in linked_srvs)
 
-            if has_outage:
-                slas_breached += 1
-                valid_slis.append(98.85)
-                total_downtime += 29808
-            elif has_warning:
-                slas_compliant += 1
-                valid_slis.append(99.54)
-                total_downtime += 12000
-            elif linked_srvs:
-                slas_compliant += 1
-                valid_slis.append(99.98)
-                total_downtime += 520
-            else:
-                # No data for this SLA
-                pass
+        # Call 3 (targeted): Query authoritative SLI calculations for requested operational period
+        target_slaid = sla_id or (raw_slas[0]["slaid"] if raw_slas else None)
+        if target_slaid:
+            slo_target = float(raw_slas[0].get("slo", 99.0)) if raw_slas else 99.0
+            try:
+                sli_data = await self.adapter.get_sla_sli(
+                    slaid=target_slaid,
+                    period_from=p_from,
+                    period_to=p_till
+                )
+                sli_matrix = sli_data.get("sli", [])
+                if sli_matrix and len(sli_matrix) > 0:
+                    period_cells = sli_matrix[0]
+                    for cell in period_cells:
+                        val_raw = cell.get("sli")
+                        if val_raw is not None and float(val_raw) >= 0.0:
+                            val_float = round(float(val_raw), 2)
+                            valid_slis.append(val_float)
+                            total_downtime += int(cell.get("downtime", 0))
+                            if val_float >= slo_target:
+                                slas_compliant += 1
+                            else:
+                                slas_breached += 1
+
+                        for ed in cell.get("excluded_downtimes", []):
+                            ed_from = int(ed.get("period_from", 0))
+                            ed_to = int(ed.get("period_to", 0))
+                            overlap_start = max(ed_from, p_from)
+                            overlap_end = min(ed_to, p_till)
+                            if overlap_end > overlap_start:
+                                total_excluded_downtime += (overlap_end - overlap_start)
+            except Exception as e:
+                logger.warning(f"Could not retrieve SLI for SLA '{target_slaid}': {e}")
+
+        # Account for static excluded downtimes in SLA definitions within the window
+        if total_excluded_downtime == 0:
+            for sla in raw_slas:
+                for ed in sla.get("excluded_downtimes", []):
+                    ed_from = int(ed.get("period_from", 0))
+                    ed_to = int(ed.get("period_to", 0))
+                    overlap_start = max(ed_from, p_from)
+                    overlap_end = min(ed_to, p_till)
+                    if overlap_end > overlap_start:
+                        total_excluded_downtime += (overlap_end - overlap_start)
 
         avg_sli = round(sum(valid_slis) / len(valid_slis), 2) if valid_slis else None
-        compliance_rate = round((slas_compliant / total_slas) * 100.0, 1) if total_slas > 0 else None
+        compliance_eval_count = slas_compliant + slas_breached
+        compliance_rate = round((slas_compliant / compliance_eval_count) * 100.0, 1) if compliance_eval_count > 0 else None
 
         now_str = datetime.fromtimestamp(now, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
@@ -213,12 +224,18 @@ class AvailabilityService:
             total_excluded_downtime_seconds=total_excluded_downtime,
             measured_period=period_label,
             data_lineage={
-                "source": "Zabbix 7.0.5 API (sla.get, service.get)",
+                "source": "Zabbix 7.0.5 API (sla.get, service.get, sla.getsli)",
                 "adapter": getattr(self.adapter, "__class__", type(self.adapter)).__name__,
+                "window": {
+                    "period_from": p_from,
+                    "period_to": p_till,
+                    "preset": time_range
+                },
                 "rules": [
                     "No Data != 100% Availability",
                     "Excluded downtimes removed from reporting windows",
-                    "Targeted call budget <= 3"
+                    "Targeted call budget <= 3",
+                    "Zero data fabrication"
                 ]
             },
             generated_at=now_str
@@ -237,19 +254,22 @@ class AvailabilityService:
         """
         Paginated Business Services List.
         Call budget: Max 3 calls (service.get, sla.get, targeted sla.getsli).
+        Zero data fabrication: Services without SLA return NOT_CONFIGURED. Services with
+        missing or unmeasured SLI return NO_DATA. Valid 0.0% and 100.0% values are preserved.
+        Pagination: Fetches bounded candidate set (limit=500) to safely determine true total_count.
         """
         status_code = None
         if status:
             rev_map = {v: k for k, v in SEVERITY_NAMES.items()}
             status_code = rev_map.get(status.upper())
 
-        # Call 1: Retrieve bounded services
-        bounded_limit = min(max(page * page_size, 25), 500)
+        # Call 1: Retrieve bounded services candidate set (maximum 500 items to protect Zabbix API)
+        MAX_SERVICE_CANDIDATES = 500
         raw_services = await self.adapter.get_services(
             sla_ids=[sla_id] if sla_id else None,
             search=search,
             status=status_code,
-            limit=bounded_limit
+            limit=MAX_SERVICE_CANDIDATES
         )
 
         # Call 2: Retrieve SLAs for matching
@@ -257,25 +277,27 @@ class AvailabilityService:
             sla_ids=[sla_id] if sla_id else None,
             limit=100
         )
-        sla_map = {s["slaid"]: s for s in raw_slas}
 
-        # Match services to primary SLA
+        # Match services to primary or explicitly queried SLA
         primary_slaid = sla_id or (raw_slas[0]["slaid"] if raw_slas else None)
 
-        # Call 3 (targeted): Get SLI for primary SLA if available
+        # Call 3 (targeted): Get SLI for primary SLA if available within call budget
         sli_by_service: Dict[str, Dict[str, Any]] = {}
         if primary_slaid:
-            sli_res = await self.adapter.get_sla_sli(
-                slaid=primary_slaid,
-                periods=1
-            )
-            service_ids = sli_res.get("serviceids", [])
-            sli_matrix = sli_res.get("sli", [])
-            if sli_matrix and len(sli_matrix) > 0:
-                latest_period_cells = sli_matrix[0]
-                for idx, s_id in enumerate(service_ids):
-                    if idx < len(latest_period_cells):
-                        sli_by_service[str(s_id)] = latest_period_cells[idx]
+            try:
+                sli_res = await self.adapter.get_sla_sli(
+                    slaid=primary_slaid,
+                    periods=1
+                )
+                service_ids = sli_res.get("serviceids", [])
+                sli_matrix = sli_res.get("sli", [])
+                if sli_matrix and len(sli_matrix) > 0:
+                    latest_period_cells = sli_matrix[0]
+                    for idx, s_id in enumerate(service_ids):
+                        if idx < len(latest_period_cells):
+                            sli_by_service[str(s_id)] = latest_period_cells[idx]
+            except Exception as e:
+                logger.warning(f"Could not retrieve SLI for SLA '{primary_slaid}': {e}")
 
         # Map each service to DTO
         all_items: List[ServiceAvailabilityItemDTO] = []
@@ -309,38 +331,30 @@ class AvailabilityService:
                 eb_sec = None
                 eb_formatted = "NO_DATA"
             elif sli_info is not None:
-                raw_sli = float(sli_info.get("sli", -1.0))
+                raw_sli_val = sli_info.get("sli")
                 uptime_sec = int(sli_info.get("uptime", 0))
                 downtime_sec = int(sli_info.get("downtime", 0))
                 eb_sec = sli_info.get("error_budget")
                 eb_formatted = format_error_budget(eb_sec)
 
-                if raw_sli == -1.0 or (uptime_sec == 0 and downtime_sec == 0):
+                if raw_sli_val is None or float(raw_sli_val) == -1.0 or float(raw_sli_val) < 0.0:
                     sli_current = None
                     sli_formatted = "NO_DATA"
                     sla_status = "NO_DATA"
                 else:
+                    raw_sli = float(raw_sli_val)
                     sli_current = round(raw_sli, 2)
                     sli_formatted = f"{raw_sli:.2f}%"
-                    sla_status = "COMPLIANT" if (slo_target and raw_sli >= slo_target) else "BREACHED"
+                    sla_status = "COMPLIANT" if (slo_target is not None and raw_sli >= slo_target) else "BREACHED"
             else:
-                # Default SLI derived deterministically from service status without fabrication
-                if st_int == 0:
-                    sli_current = 99.98
-                    sli_formatted = "99.98%"
-                    sla_status = "COMPLIANT"
-                    uptime_sec = 2591480
-                    downtime_sec = 520
-                    eb_sec = 2072
-                    eb_formatted = format_error_budget(eb_sec)
-                else:
-                    sli_current = 98.85
-                    sli_formatted = "98.85%"
-                    sla_status = "BREACHED"
-                    uptime_sec = 2562192
-                    downtime_sec = 29808
-                    eb_sec = -16848
-                    eb_formatted = format_error_budget(eb_sec)
+                # SLA is configured, but SLI telemetry is not available for this service within the call budget
+                sli_current = None
+                sli_formatted = "NO_DATA"
+                sla_status = "NO_DATA"
+                uptime_sec = 0
+                downtime_sec = 0
+                eb_sec = None
+                eb_formatted = "NO_DATA"
 
             # Problem events
             prob_events = []
@@ -405,7 +419,8 @@ class AvailabilityService:
             "total_services": total_count,
             "compliant_count": sum(1 for x in all_items if x.sla_status == "COMPLIANT"),
             "breached_count": sum(1 for x in all_items if x.sla_status == "BREACHED"),
-            "unconfigured_count": sum(1 for x in all_items if x.sla_status == "NOT_CONFIGURED")
+            "unconfigured_count": sum(1 for x in all_items if x.sla_status == "NOT_CONFIGURED"),
+            "bounded_ceiling": MAX_SERVICE_CANDIDATES
         }
 
         return ServiceAvailabilityListDTO(
@@ -427,13 +442,47 @@ class AvailabilityService:
     ) -> SLAListResponseDTO:
         """
         SLA Registry List.
-        Call budget: Max 2 calls (sla.get, targeted sla.getsli).
+        Call budget: Max 3 calls (sla.get, service.get, targeted sla.getsli).
+        Zero mock coupling: Dynamic resolution of real numeric Zabbix SLA IDs without
+        hardcoded identifiers or names.
         """
         # Call 1: Retrieve SLAs
         raw_slas = await self.adapter.get_slas(
             search=search,
             limit=100
         )
+
+        # Call 2: Retrieve services to calculate service counts
+        raw_services = await self.adapter.get_services(
+            limit=500
+        )
+
+        # Call 3 (targeted): Get SLI for the primary SLA if available within call budget
+        primary_slaid = raw_slas[0]["slaid"] if raw_slas else None
+        sli_by_sla: Dict[str, Dict[str, Any]] = {}
+        if primary_slaid:
+            try:
+                sli_res = await self.adapter.get_sla_sli(
+                    slaid=primary_slaid,
+                    periods=1
+                )
+                sli_matrix = sli_res.get("sli", [])
+                if sli_matrix and len(sli_matrix) > 0:
+                    period_cells = sli_matrix[0]
+                    valid_cells = [
+                        c for c in period_cells 
+                        if c.get("sli") is not None and float(c.get("sli", -1.0)) >= 0.0
+                    ]
+                    if valid_cells:
+                        avg_sli = round(sum(float(c["sli"]) for c in valid_cells) / len(valid_cells), 2)
+                        eb_list = [c.get("error_budget") for c in valid_cells if c.get("error_budget") is not None]
+                        min_eb = min(eb_list) if eb_list else None
+                        sli_by_sla[primary_slaid] = {
+                            "sli": avg_sli,
+                            "error_budget": min_eb
+                        }
+            except Exception as e:
+                logger.warning(f"Could not retrieve SLI for SLA '{primary_slaid}': {e}")
 
         all_items: List[SLADefinitionItemDTO] = []
         for sla in raw_slas:
@@ -460,28 +509,27 @@ class AvailabilityService:
                     )
                 )
 
-            # Deterministic compliance based on SLA config
-            if slaid == "sla_01":
-                curr_sli = 99.98
-                sli_fmt = "99.98%"
-                comp_status = "COMPLIANT"
-                eb_sec = 2072
-                eb_hum = "+34m"
-                srv_count = 3
-            elif slaid == "sla_02":
-                curr_sli = 98.85
-                sli_fmt = "98.85%"
-                comp_status = "BREACHED"
-                eb_sec = -16848
-                eb_hum = "-4h 40m"
-                srv_count = 2
+            # Service count derived from services matching SLA tags
+            sla_tags = [(t.get("tag"), t.get("value")) for t in sla.get("service_tags", [])]
+            srv_count = sum(
+                1 for s in raw_services
+                if any((t.get("tag"), t.get("value")) in sla_tags for t in s.get("tags", []))
+            ) if sla_tags else 0
+
+            # Dynamic SLI metrics from authoritative adapter response (Golden Rule: Zero fabrication!)
+            sla_sli_info = sli_by_sla.get(slaid)
+            if sla_sli_info is not None and sla_sli_info["sli"] is not None:
+                curr_sli = sla_sli_info["sli"]
+                sli_fmt = f"{curr_sli:.2f}%"
+                comp_status = "COMPLIANT" if curr_sli >= slo else "BREACHED"
+                eb_sec = sla_sli_info["error_budget"]
+                eb_hum = format_error_budget(eb_sec)
             else:
                 curr_sli = None
                 sli_fmt = "NO_DATA"
                 comp_status = "NO_DATA"
                 eb_sec = None
                 eb_hum = "NO_DATA"
-                srv_count = 0
 
             all_items.append(
                 SLADefinitionItemDTO(

@@ -178,14 +178,16 @@ async def test_no_data_and_not_configured_semantics():
     assert sandbox.error_budget_formatted == "NO_DATA"
 
 
-# 9. Valid 100% and Compliance Semantics
+# 9. Valid 100% and Compliance Semantics (Golden Rule: Zero Fabrication)
 @pytest.mark.asyncio
 async def test_valid_compliant_and_breached_semantics():
     adapter = MockZabbixAdapter()
     service = AvailabilityService(adapter=adapter)
+    
+    # Untargeted query (evaluates primary SLA)
     res = await service.get_services(page=1, page_size=100)
 
-    # Core Banking: compliant
+    # Core Banking: compliant under primary SLA
     core = next((s for s in res.items if s.service_id == "service_01"), None)
     assert core is not None
     assert core.sla_status == "COMPLIANT"
@@ -193,14 +195,22 @@ async def test_valid_compliant_and_breached_semantics():
     assert core.sli_formatted == "99.98%"
     assert "+" in core.error_budget_formatted
 
-    # Customer Portal: breached due to active problem
-    portal = next((s for s in res.items if s.service_id == "service_02"), None)
+    # Customer Portal is linked to sla_02. In untargeted query, it returns NO_DATA (never fabricated fallback numbers!)
+    portal_unscoped = next((s for s in res.items if s.service_id == "service_02"), None)
+    assert portal_unscoped is not None
+    assert portal_unscoped.sla_status == "NO_DATA"
+    assert portal_unscoped.sli_current is None
+    assert portal_unscoped.sli_formatted == "NO_DATA"
+
+    # When explicitly targeted with sla_id="sla_02", Customer Portal's real Zabbix SLI is retrieved
+    res_targeted = await service.get_services(page=1, page_size=100, sla_id="sla_02")
+    portal = next((s for s in res_targeted.items if s.service_id == "service_02"), None)
     assert portal is not None
     assert portal.sla_status == "BREACHED"
     assert portal.status == "HIGH"
     assert portal.problem_count >= 1
     assert portal.sli_current == 98.85
-    assert "-" in core.error_budget_formatted or "-" in portal.error_budget_formatted
+    assert "-" in portal.error_budget_formatted
 
 
 # 10. Excluded downtime / Planned maintenance
@@ -263,7 +273,7 @@ async def test_sorting_options():
         assert names == sorted(names)
 
 
-# 14. Call budget: Overview <= 3 calls (Target: 2 calls)
+# 14. Call budget: Overview <= 3 calls
 @pytest.mark.asyncio
 async def test_call_budget_overview():
     spy = AdapterCallSpy(MockZabbixAdapter())
@@ -271,10 +281,10 @@ async def test_call_budget_overview():
     await service.get_overview()
 
     assert len(spy.call_history) <= 3
-    assert len(spy.call_history) == 2
     called_methods = [c["method"] for c in spy.call_history]
     assert "get_slas" in called_methods
     assert "get_services" in called_methods
+    assert "get_sla_sli" in called_methods
 
 
 # 15. Call budget: Services list <= 3 calls
@@ -364,3 +374,264 @@ async def test_empty_query_handling():
         assert data["total_count"] == 0
         assert data["items"] == []
         assert data["page"] == 1
+
+
+# 21. Real Numeric SLA IDs: "1", "2", "15" must NOT become NO_DATA
+class NumericIdTestAdapter(MockZabbixAdapter):
+    """Adapter simulating real Zabbix 7.0.5 dynamic numeric IDs."""
+    async def get_slas(self, sla_ids=None, service_ids=None, search=None, limit=100):
+        all_slas = [
+            {
+                "slaid": "1",
+                "name": "Production Tier-1 SLA",
+                "period": 2,
+                "slo": 99.90,
+                "effective_date": 1704067200,
+                "timezone": "UTC",
+                "status": "1",
+                "description": "Production numeric SLA 1",
+                "schedule": [],
+                "excluded_downtimes": [],
+                "service_tags": [{"tag": "env", "operator": "0", "value": "prod"}]
+            },
+            {
+                "slaid": "2",
+                "name": "Internal Tools SLA",
+                "period": 2,
+                "slo": 95.00,
+                "effective_date": 1704067200,
+                "timezone": "UTC",
+                "status": "1",
+                "description": "Production numeric SLA 2",
+                "schedule": [],
+                "excluded_downtimes": [],
+                "service_tags": [{"tag": "env", "operator": "0", "value": "internal"}]
+            },
+            {
+                "slaid": "15",
+                "name": "Data Analytics SLA",
+                "period": 2,
+                "slo": 99.00,
+                "effective_date": 1704067200,
+                "timezone": "UTC",
+                "status": "1",
+                "description": "Production numeric SLA 15",
+                "schedule": [],
+                "excluded_downtimes": [],
+                "service_tags": [{"tag": "env", "operator": "0", "value": "analytics"}]
+            }
+        ]
+        if sla_ids:
+            all_slas = [s for s in all_slas if s["slaid"] in sla_ids]
+        return all_slas[:limit]
+
+    async def get_services(self, service_ids=None, sla_ids=None, search=None, status=None, limit=500):
+        srvs = [
+            {"serviceid": "101", "name": "Payment Gateway", "status": 0, "tags": [{"tag": "env", "value": "prod"}], "problem_events": []},
+            {"serviceid": "102", "name": "Zero Uptime Outage", "status": 5, "tags": [{"tag": "env", "value": "prod"}], "problem_events": []},
+            {"serviceid": "103", "name": "Perfect Uptime Service", "status": 0, "tags": [{"tag": "env", "value": "prod"}], "problem_events": []},
+            {"serviceid": "104", "name": "Internal Wiki", "status": 0, "tags": [{"tag": "env", "value": "internal"}], "problem_events": []},
+            {"serviceid": "105", "name": "Unconfigured Service", "status": 0, "tags": [{"tag": "env", "value": "standalone"}], "problem_events": []}
+        ]
+        return srvs[:limit]
+
+    async def get_sla_sli(self, slaid, period_from=None, period_to=None, periods=None, service_ids=None):
+        if slaid == "1":
+            return {
+                "periods": [{"period_from": period_from or 1000, "period_to": period_to or 2000}],
+                "serviceids": ["101", "102", "103"],
+                "sli": [
+                    [
+                        {"uptime": 2591000, "downtime": 1000, "sli": 99.95, "error_budget": 1200, "excluded_downtimes": []},
+                        {"uptime": 0, "downtime": 2592000, "sli": 0.0, "error_budget": -24000, "excluded_downtimes": []},
+                        {"uptime": 2592000, "downtime": 0, "sli": 100.0, "error_budget": 2592, "excluded_downtimes": []}
+                    ]
+                ]
+            }
+        return {"periods": [], "serviceids": [], "sli": []}
+
+
+@pytest.mark.asyncio
+async def test_numeric_sla_ids_do_not_become_no_data():
+    adapter = NumericIdTestAdapter()
+    service = AvailabilityService(adapter=adapter)
+    
+    # 1. Verify get_slas handles numeric IDs "1", "2", "15"
+    slas_res = await service.get_slas()
+    sla_1 = next((s for s in slas_res.items if s.sla_id == "1"), None)
+    assert sla_1 is not None, "Numeric SLA '1' must be resolved!"
+    assert sla_1.current_sli is not None, "Numeric SLA '1' must NOT be converted to NO_DATA!"
+    assert sla_1.sli_formatted == "99.98%" or "%" in sla_1.sli_formatted
+    assert sla_1.service_count == 3
+
+    # 2. Verify get_services handles numeric IDs and preserves 0.0 and 100.0
+    services_res = await service.get_services(page=1, page_size=10, sla_id="1")
+    
+    # Service 101: 99.95%
+    s101 = next((s for s in services_res.items if s.service_id == "101"), None)
+    assert s101 is not None
+    assert s101.sli_current == 99.95
+    assert s101.sli_formatted == "99.95%"
+    assert s101.sla_status == "COMPLIANT"
+
+    # Service 102: Valid 0.0% outage MUST remain 0.0%, never NO_DATA or 100%
+    s102 = next((s for s in services_res.items if s.service_id == "102"), None)
+    assert s102 is not None
+    assert s102.sli_current == 0.0
+    assert s102.sli_formatted == "0.00%"
+    assert s102.sla_status == "BREACHED"
+
+    # Service 103: Valid 100.0% MUST remain 100.0%
+    s103 = next((s for s in services_res.items if s.service_id == "103"), None)
+    assert s103 is not None
+    assert s103.sli_current == 100.0
+    assert s103.sli_formatted == "100.00%"
+    assert s103.sla_status == "COMPLIANT"
+
+    # Service 105: No linked SLA MUST return NOT_CONFIGURED
+    s105 = next((s for s in services_res.items if s.service_id == "105"), None)
+    assert s105 is not None
+    assert s105.sla_status == "NOT_CONFIGURED"
+    assert s105.sli_current is None
+    assert s105.sli_formatted == "NO_DATA"
+    assert s105.error_budget_formatted == "NO_DATA"
+
+
+# 22. Pagination test for exact dataset sizes: 25, 26, 50, 51, 100, 500
+class PaginationDatasetAdapter(MockZabbixAdapter):
+    def __init__(self, count: int):
+        super().__init__()
+        self.count = count
+
+    async def get_services(self, service_ids=None, sla_ids=None, search=None, status=None, limit=500):
+        effective_count = min(self.count, limit)
+        return [
+            {
+                "serviceid": f"srv_{i:04d}",
+                "name": f"Service Record {i:04d}",
+                "status": 0,
+                "tags": [{"tag": "env", "value": "prod"}],
+                "problem_events": []
+            }
+            for i in range(1, effective_count + 1)
+        ]
+
+
+@pytest.mark.asyncio
+async def test_pagination_dataset_sizes():
+    for dataset_size in (25, 26, 50, 51, 100, 500):
+        adapter = PaginationDatasetAdapter(count=dataset_size)
+        service = AvailabilityService(adapter=adapter)
+
+        # Page 1
+        page1 = await service.get_services(page=1, page_size=25)
+        assert page1.total_count == dataset_size, f"Failed total_count for dataset {dataset_size} on page 1"
+        expected_pages = (dataset_size + 24) // 25
+        assert page1.total_pages == expected_pages, f"Failed total_pages for dataset {dataset_size}"
+        assert len(page1.items) == min(25, dataset_size)
+        assert page1.page == 1
+
+        # When dataset > 25, verify Page 2 exists, is disjoint from Page 1, and Next is valid
+        if dataset_size > 25:
+            page2 = await service.get_services(page=2, page_size=25)
+            assert page2.total_count == dataset_size
+            assert page2.total_pages == expected_pages
+            assert page2.page == 2
+            expected_page2_len = min(25, dataset_size - 25)
+            assert len(page2.items) == expected_page2_len
+
+            page1_ids = {item.service_id for item in page1.items}
+            page2_ids = {item.service_id for item in page2.items}
+            assert len(page1_ids.intersection(page2_ids)) == 0, "Page 1 and Page 2 must contain disjoint items!"
+
+
+# 23. Time range presets produce distinct operational windows passed to adapter
+@pytest.mark.asyncio
+async def test_time_range_presets_produce_distinct_windows():
+    spy = AdapterCallSpy(MockZabbixAdapter())
+    service = AvailabilityService(adapter=spy)
+
+    windows = {}
+    for preset in ("24h", "7d", "30d", "90d", "365d"):
+        spy.call_history.clear()
+        res = await service.get_overview(time_range=preset)
+        sli_call = next((c for c in spy.call_history if c["method"] == "get_sla_sli"), None)
+        assert sli_call is not None, f"get_sla_sli must be called for preset {preset}"
+        p_from = sli_call["kwargs"].get("period_from")
+        p_to = sli_call["kwargs"].get("period_to")
+        assert p_from is not None and p_to is not None
+        window_duration = p_to - p_from
+        windows[preset] = window_duration
+
+    # Verify all window durations are strictly increasing and match operational presets
+    assert windows["24h"] == 86400
+    assert windows["7d"] == 604800
+    assert windows["30d"] == 2592000
+    assert windows["90d"] == 7776000
+    assert windows["365d"] == 31536000
+
+
+# 24. Custom time range application
+@pytest.mark.asyncio
+async def test_custom_time_range_application():
+    spy = AdapterCallSpy(MockZabbixAdapter())
+    service = AvailabilityService(adapter=spy)
+
+    t_from = 1700000000
+    t_till = 1700500000
+    res = await service.get_overview(time_from=t_from, time_till=t_till)
+
+    sli_call = next((c for c in spy.call_history if c["method"] == "get_sla_sli"), None)
+    assert sli_call is not None
+    assert sli_call["kwargs"]["period_from"] == t_from
+    assert sli_call["kwargs"]["period_to"] == t_till
+    assert "Custom" in res.measured_period
+
+
+# 25. Static Verification: Zero mock SLA IDs or fabricated values in production services.py
+def test_static_zero_mock_coupling_or_data_fabrication_in_service():
+    import inspect
+    from modules.availability.backend import services
+
+    source = inspect.getsource(services)
+    
+    # Forbidden mock identifiers in production logic
+    forbidden_tokens = [
+        "sla_01",
+        "sla_02",
+        "2591480",
+        "2562192",
+        "29808",
+        "16848",
+        "2072"
+    ]
+    for token in forbidden_tokens:
+        assert token not in source, f"Forbidden mock token or fabricated value '{token}' found in services.py!"
+
+
+# 26. Call budget strictly <= 3 on all endpoints
+@pytest.mark.asyncio
+async def test_call_budget_strictly_enforced_on_all_endpoints():
+    spy = AdapterCallSpy(MockZabbixAdapter())
+    service = AvailabilityService(adapter=spy)
+
+    # 1. Overview
+    spy.call_history.clear()
+    await service.get_overview()
+    assert len(spy.call_history) <= 3
+
+    # 2. Services List
+    spy.call_history.clear()
+    await service.get_services(page=1, page_size=50)
+    assert len(spy.call_history) <= 3
+
+    # 3. SLAs List
+    spy.call_history.clear()
+    await service.get_slas(page=1, page_size=25)
+    assert len(spy.call_history) <= 3
+
+    # 4. Trend
+    spy.call_history.clear()
+    await service.get_trend(sla_id="sla_01", periods=12)
+    assert len(spy.call_history) <= 3
+

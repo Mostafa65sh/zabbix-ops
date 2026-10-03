@@ -1177,13 +1177,15 @@ class MockZabbixAdapter(ZabbixAdapterBase):
         now = int(time.time())
         month_seconds = 2592000
 
-        # Build periods descending then reverse
-        reporting_periods = []
-        for i in range(num_periods):
-            p_to = now - (i * month_seconds)
-            p_from = p_to - month_seconds
-            reporting_periods.append({"period_from": p_from, "period_to": p_to})
-        reporting_periods.reverse()
+        if period_from is not None and period_to is not None:
+            reporting_periods = [{"period_from": period_from, "period_to": period_to}]
+        else:
+            reporting_periods = []
+            for i in range(num_periods):
+                p_to = now - (i * month_seconds)
+                p_from = p_to - month_seconds
+                reporting_periods.append({"period_from": p_from, "period_to": p_to})
+            reporting_periods.reverse()
 
         # Map services in this SLA
         all_services = self._get_raw_mock_services()
@@ -1205,25 +1207,30 @@ class MockZabbixAdapter(ZabbixAdapterBase):
         for p_idx, p in enumerate(reporting_periods):
             period_cells = []
             is_latest_period = (p_idx == len(reporting_periods) - 1)
+            win_dur = max(1, p["period_to"] - p["period_from"])
+            dur_ratio = win_dur / float(month_seconds)
 
             for s in target_services:
                 sid = s["serviceid"]
                 if sid == "service_01":
                     # Core Banking: compliant (99.98%)
+                    up_s = int(2591480 * dur_ratio)
+                    down_s = max(0, win_dur - up_s)
                     period_cells.append({
-                        "uptime": 2591480,
-                        "downtime": 520,
+                        "uptime": up_s,
+                        "downtime": down_s,
                         "sli": 99.98,
-                        "error_budget": 2072,
+                        "error_budget": int(2072 * dur_ratio),
                         "excluded_downtimes": []
                     })
                 elif sid == "service_02":
                     # Customer Portal: breached in latest period (98.85%), compliant in past
                     sli_val = 98.85 if is_latest_period else 99.70
-                    dt = 29808 if is_latest_period else 7776
-                    eb = -16848 if is_latest_period else 5184
+                    dt = int((29808 if is_latest_period else 7776) * dur_ratio)
+                    up_s = max(0, win_dur - dt)
+                    eb = int((-16848 if is_latest_period else 5184) * dur_ratio)
                     period_cells.append({
-                        "uptime": 2562192 if is_latest_period else 2584224,
+                        "uptime": up_s,
                         "downtime": dt,
                         "sli": sli_val,
                         "error_budget": eb,
@@ -1231,18 +1238,19 @@ class MockZabbixAdapter(ZabbixAdapterBase):
                     })
                 elif sid == "service_03":
                     # Data Warehouse: 100% with excluded downtime
+                    ex_downtimes = []
+                    if win_dur >= 86400:
+                        ex_downtimes.append({
+                            "name": "Weekly Storage Maintenance",
+                            "period_from": p["period_from"] + min(86400, int(win_dur * 0.1)),
+                            "period_to": p["period_from"] + min(100800, int(win_dur * 0.1) + 14400)
+                        })
                     period_cells.append({
-                        "uptime": 2577600,
+                        "uptime": win_dur,
                         "downtime": 0,
                         "sli": 100.0,
-                        "error_budget": 2577,
-                        "excluded_downtimes": [
-                            {
-                                "name": "Weekly Storage Maintenance",
-                                "period_from": p["period_from"] + 86400,
-                                "period_to": p["period_from"] + 100800
-                            }
-                        ]
+                        "error_budget": int(2577 * dur_ratio),
+                        "excluded_downtimes": ex_downtimes
                     })
                 elif sid == "service_04":
                     # Sandbox: NO DATA (-1.0)
@@ -1255,20 +1263,21 @@ class MockZabbixAdapter(ZabbixAdapterBase):
                     })
                 elif sid == "service_05":
                     # Legacy Reporting: 99.54%
+                    dt = int(12000 * dur_ratio)
                     period_cells.append({
-                        "uptime": 2580000,
-                        "downtime": 12000,
+                        "uptime": max(0, win_dur - dt),
+                        "downtime": dt,
                         "sli": 99.54,
-                        "error_budget": 960,
+                        "error_budget": int(960 * dur_ratio),
                         "excluded_downtimes": []
                     })
                 elif sid == "service_06":
                     # Auth Gateway: 100%
                     period_cells.append({
-                        "uptime": 2592000,
+                        "uptime": win_dur,
                         "downtime": 0,
                         "sli": 100.0,
-                        "error_budget": 2592,
+                        "error_budget": int(2592 * dur_ratio),
                         "excluded_downtimes": []
                     })
                 else:
