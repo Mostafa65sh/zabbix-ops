@@ -4,6 +4,7 @@ import { overviewModule } from '../../../modules/overview/frontend';
 import { serversModule } from '../../../modules/servers/frontend';
 import { problemsModule } from '../../../modules/problems/frontend';
 import { availabilityModule } from '../../../modules/availability/frontend';
+import { host360Module } from '../../../modules/host360/frontend';
 
 // Module definitions for the 21 Product Specification modules
 const moduleDefinitions: FrontendModuleDefinition[] = [
@@ -11,16 +12,7 @@ const moduleDefinitions: FrontendModuleDefinition[] = [
   serversModule,
   problemsModule,
   availabilityModule,
-  {
-    id: 'host360',
-    name: 'Host 360',
-    version: '0.1.0',
-    description: 'Comprehensive 360-degree host telemetry, metrics, and event overlays',
-    enabled: true,
-    route: '/host360',
-    navItem: { label: 'Host 360', path: '/host360', order: 5 },
-    permissions: ['module.host360.view'],
-  },
+  host360Module,
   {
     id: 'top_n',
     name: 'Top N',

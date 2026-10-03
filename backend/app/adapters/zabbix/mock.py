@@ -1297,6 +1297,46 @@ class MockZabbixAdapter(ZabbixAdapterBase):
             "sli": sli_matrix
         }
 
+    async def get_host_telemetry_history(
+        self,
+        host_id: str,
+        time_from: int,
+        time_till: int
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Generate deterministic mock time-series data for CPU, Memory, and Storage.
+        Calculates ~24 sample points across the requested time_from to time_till interval.
+        """
+        step = max(60, (time_till - time_from) // 24)
+        cpu_series = []
+        mem_series = []
+        storage_series = []
 
+        # Base offsets per host id
+        host_num = int(host_id) if host_id.isdigit() else 10001
+        base_cpu = 15.0 + (host_num % 40)
+        base_mem = 40.0 + (host_num % 35)
+        base_stor = 55.0 + (host_num % 20)
 
+        curr = time_from
+        idx = 0
+        while curr <= time_till:
+            iso_str = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(curr))
+            
+            # Deterministic variation
+            cpu_val = round(min(100.0, max(1.0, base_cpu + ((idx * 7) % 25) - 10)), 1)
+            mem_val = round(min(100.0, max(5.0, base_mem + ((idx * 3) % 15) - 5)), 1)
+            stor_val = round(min(100.0, max(10.0, base_stor + (idx % 3))), 1)
 
+            cpu_series.append({"clock": curr, "timestamp_iso": iso_str, "value": cpu_val})
+            mem_series.append({"clock": curr, "timestamp_iso": iso_str, "value": mem_val})
+            storage_series.append({"clock": curr, "timestamp_iso": iso_str, "value": stor_val})
+
+            curr += step
+            idx += 1
+
+        return {
+            "cpu": cpu_series,
+            "memory": mem_series,
+            "storage": storage_series
+        }

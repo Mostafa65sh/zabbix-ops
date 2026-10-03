@@ -539,7 +539,78 @@ class RealZabbixAdapter(ZabbixAdapterBase):
         res = await self._call_api("service.get", params)
         return res or []
 
+    async def get_host_telemetry_history(
+        self,
+        host_id: str,
+        time_from: int,
+        time_till: int
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Query real Zabbix 7.0.5 history for CPU, memory, and storage utilization.
+        Step 1: Discover itemids for system.cpu.util, vm.memory.util, vfs.fs.size[/,pused].
+        Step 2: Query history.get with history=0 (float), time_from, time_till.
+        """
+        key_map = {
+            "system.cpu.util": "cpu",
+            "vm.memory.util": "memory",
+            "vfs.fs.size[/,pused]": "storage"
+        }
+        series: Dict[str, List[Dict[str, Any]]] = {
+            "cpu": [],
+            "memory": [],
+            "storage": []
+        }
 
+        try:
+            items = await self._call_api("item.get", {
+                "output": ["itemid", "key_", "value_type"],
+                "hostids": [host_id],
+                "filter": {
+                    "key_": list(key_map.keys())
+                }
+            }) or []
 
+            item_to_metric: Dict[str, str] = {}
+            float_itemids: List[str] = []
+            for it in items:
+                k = it.get("key_")
+                iid = str(it.get("itemid"))
+                if k in key_map:
+                    metric = key_map[k]
+                    item_to_metric[iid] = metric
+                    float_itemids.append(iid)
 
+            if float_itemids:
+                raw_history = await self._call_api("history.get", {
+                    "output": ["itemid", "clock", "value"],
+                    "history": 0,
+                    "itemids": float_itemids,
+                    "time_from": time_from,
+                    "time_till": time_till,
+                    "sortfield": "clock",
+                    "sortorder": "ASC",
+                    "limit": 1000
+                }) or []
+
+                for entry in raw_history:
+                    iid = str(entry.get("itemid"))
+                    metric = item_to_metric.get(iid)
+                    if metric:
+                        clock = int(entry.get("clock", 0))
+                        try:
+                            val = float(entry.get("value", 0.0))
+                        except (ValueError, TypeError):
+                            val = None
+                        
+                        import time
+                        iso_str = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(clock))
+                        series[metric].append({
+                            "clock": clock,
+                            "timestamp_iso": iso_str,
+                            "value": round(val, 2) if val is not None else None
+                        })
+        except Exception:
+            pass
+
+        return series
 

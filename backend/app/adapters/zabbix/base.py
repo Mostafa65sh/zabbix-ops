@@ -116,6 +116,12 @@ class ZabbixAdapterBase(ABC):
         """Retrieve business services with status, tags, and problem events via service.get."""
         pass
 
-
-
-
+    @abstractmethod
+    async def get_host_telemetry_history(
+        self,
+        host_id: str,
+        time_from: int,
+        time_till: int
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """Retrieve historical telemetry time-series (cpu, memory, storage) for host."""
+        pass

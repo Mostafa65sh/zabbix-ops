@@ -3,7 +3,7 @@ import { Host360Page } from './routes';
 export const host360Module = {
   id: 'host360',
   name: 'Host 360',
-  version: '0.1.0',
+  version: '1.0.0',
   description: 'Comprehensive 360-degree host telemetry, metrics, and event overlays',
   enabled: true,
   route: '/host360',

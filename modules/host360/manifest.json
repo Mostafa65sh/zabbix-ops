@@ -1,7 +1,7 @@
 {
   "id": "host360",
   "name": "Host 360",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Comprehensive 360-degree host telemetry, metrics, and event overlays",
   "core_version": ">=0.2.0",
   "enabled_by_default": true,
