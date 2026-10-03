@@ -5,6 +5,7 @@ import { serversModule } from '../../../modules/servers/frontend';
 import { problemsModule } from '../../../modules/problems/frontend';
 import { availabilityModule } from '../../../modules/availability/frontend';
 import { host360Module } from '../../../modules/host360/frontend';
+import { top_nModule } from '../../../modules/top_n/frontend';
 
 // Module definitions for the 21 Product Specification modules
 const moduleDefinitions: FrontendModuleDefinition[] = [
@@ -13,16 +14,7 @@ const moduleDefinitions: FrontendModuleDefinition[] = [
   problemsModule,
   availabilityModule,
   host360Module,
-  {
-    id: 'top_n',
-    name: 'Top N',
-    version: '0.1.0',
-    description: 'Ranked resource utilization (CPU, memory, disk, network, latency, downtime)',
-    enabled: true,
-    route: '/top-n',
-    navItem: { label: 'Top N', path: '/top-n', order: 6 },
-    permissions: ['module.top_n.view'],
-  },
+  top_nModule,
   {
     id: 'graph_explorer',
     name: 'Graph Explorer',

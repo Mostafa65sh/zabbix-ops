@@ -1,7 +1,7 @@
 {
   "id": "top_n",
   "name": "Top N",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Ranked resource utilization (CPU, memory, disk, network, latency, downtime)",
   "core_version": ">=0.2.0",
   "enabled_by_default": true,

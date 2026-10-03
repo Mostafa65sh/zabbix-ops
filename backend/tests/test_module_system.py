@@ -218,3 +218,11 @@ async def test_module_skeleton_endpoint():
         assert ov_data["module"] == "overview"
         assert ov_data["status"] == "operational"
 
+        # Top N module status (now operational in Module 06)
+        top_n_resp = await client.get("/api/v1/top_n/status")
+        assert top_n_resp.status_code == 200
+        top_n_data = top_n_resp.json()
+        assert top_n_data["module"] == "top_n"
+        assert top_n_data["status"] == "operational"
+        assert top_n_data["version"] == "1.0.0"
+
